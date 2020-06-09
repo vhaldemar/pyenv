@@ -2,7 +2,7 @@ from abc import abstractmethod
 from pickle import Pickler, Unpickler
 from typing import Iterable, BinaryIO, Dict, Optional
 
-from utils import StreamingUtils
+from .utils import transfer
 
 """
 serialization: extending pickler/unpickler
@@ -105,7 +105,7 @@ class PickleComponentAtomicChange(AtomicChange):
 
     def transfer(self, output: BinaryIO):
         self._check_and_set_processed()
-        StreamingUtils.transfer(self._payload, output)
+        transfer(self._payload, output)
 
     def apply(self, env: Environment) -> None:
         self._check_and_set_processed()
