@@ -13,18 +13,14 @@ class CustomUnpickler(Unpickler):
     pass
 
 
-class PicklerResult:
-    def __init__(self, value: BinaryIO, clusters: Iterable[Set[str]], non_serialized_vars: Set[str]):
+class DumpedComponent:
+    def __init__(self, value: BinaryIO, var_names: Set[str]):
         self._value = value
-        self._clusters = copy.deepcopy(clusters)
-        self._non_serialized_var = set(non_serialized_vars)
+        self._var_names = set(var_names)
         self._processed = False
 
-    def clusters(self) -> Iterable[Set[str]]:
-        return copy.deepcopy(self._clusters)
-
-    def non_non_serialized_vars(self) -> Set[str]:
-        return set(self._non_serialized_var)
+    def var_names(self) -> Set[str]:
+        return set(self._var_names)
 
     def transfer(self, output: BinaryIO) -> None:
         if self._processed:
@@ -33,7 +29,15 @@ class PicklerResult:
         StreamingUtils.transfer(self._value, output)
 
 
-class PicklerAgent:
+class DumpMetadata:
+    def __init__(self, non_serialized_vars: Set[str]):
+        self._non_serialized_vars = set(non_serialized_vars)
+
+    def non_serialized_vars(self) -> Set[str]:
+        return set(self._non_serialized_vars)
+
+
+class ComponentsDumper:
     @abstractmethod
-    def dump_clustered(self, variables: Dict[str, object], dirty: Iterable[str]) -> PicklerResult:
+    def dump(self, variables: Dict[str, object], dirty: Iterable[str]) -> (Iterable[DumpedComponent], DumpMetadata):
         pass
