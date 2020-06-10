@@ -1,25 +1,7 @@
 from abc import abstractmethod
-from pickle import Pickler, Unpickler
-from typing import Iterable, BinaryIO, Dict, Optional
+from typing import Iterable, BinaryIO, Dict, Optional, Set
 
-from utils import StreamingUtils
-
-"""
-serialization: extending pickler/unpickler
-"""
-
-
-class CustomPickler(Pickler):
-    pass
-
-
-class CustomUnpickler(Unpickler):
-    pass
-
-
-"""
-environment
-"""
+from .utils import StreamingUtils
 
 
 class Environment(dict):
@@ -94,14 +76,14 @@ class PrimitiveAtomicChange(AtomicChange):
 
 
 class PickleComponentAtomicChange(AtomicChange):
-    def __init__(self, change_id: str, var_names: Iterable[str], payload: BinaryIO):
+    def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO):
         super().__init__(change_id)
         self._payload = payload
-        self._component_names = list(var_names)
+        self._component_names = set(var_names)
         self._processed = False
 
-    def component_names(self) -> Iterable[str]:
-        return list(self._component_names)
+    def component_names(self) -> Set[str]:
+        return set(self._component_names)
 
     def transfer(self, output: BinaryIO):
         self._check_and_set_processed()
