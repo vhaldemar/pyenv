@@ -1,12 +1,14 @@
 from abc import abstractmethod
 from typing import Iterable, BinaryIO, Dict, Optional, Set
 
+from .serialization import Serialization
 from .utils import StreamingUtils
 
 
 class Environment(dict):
-    def __init__(self, init: Dict[str, object]):
+    def __init__(self, init: Dict[str, object], serialization: Serialization):
         super().__init__(init)
+        self._serialization = serialization
 
     def __setitem__(self, name: str, value: object) -> None:
         super().__setitem__(name, value)
@@ -40,8 +42,9 @@ class Environment(dict):
 
 
 class AtomicChange:
-    def __init__(self, change_id: str):
+    def __init__(self, change_id: str, serialization: Serialization):
         self._change_id = change_id
+        self._serialization = serialization
 
     def id(self) -> str:
         return self._change_id
@@ -56,8 +59,8 @@ class AtomicChange:
 
 
 class PrimitiveAtomicChange(AtomicChange):
-    def __init__(self, change_id: str, name: str, value: bytes):
-        super().__init__(change_id)
+    def __init__(self, change_id: str, name: str, value: bytes, serialization: Serialization):
+        super().__init__(change_id, serialization)
         self._value = value
         self._name = name
 
@@ -76,8 +79,8 @@ class PrimitiveAtomicChange(AtomicChange):
 
 
 class PickleComponentAtomicChange(AtomicChange):
-    def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO):
-        super().__init__(change_id)
+    def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO, serialization: Serialization):
+        super().__init__(change_id, serialization)
         self._payload = payload
         self._component_names = set(var_names)
         self._processed = False

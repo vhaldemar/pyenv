@@ -37,7 +37,23 @@ class DumpMetadata:
         return set(self._non_serialized_vars)
 
 
-class ComponentsDumper:
+class LoadedComponent:
+    def __init__(self, variables: Dict[str, object], non_deserialized_vars: Set[str]):
+        self._variables = dict(variables)
+        self._non_deserialized_vars = set(non_deserialized_vars)
+
+    def variables(self) -> Dict[str, object]:
+        return dict(self._variables)
+
+    def non_deserialized_vars(self) -> Set[str]:
+        return set(self._non_deserialized_vars)
+
+
+class Serialization:
     @abstractmethod
     def dump(self, variables: Dict[str, object], dirty: Iterable[str]) -> (Iterable[DumpedComponent], DumpMetadata):
+        pass
+
+    @abstractmethod
+    def load(self, raw: BinaryIO) -> Iterable[LoadedComponent]:
         pass
