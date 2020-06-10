@@ -1,21 +1,7 @@
 from abc import abstractmethod
-from pickle import Pickler, Unpickler
 from typing import Iterable, BinaryIO, Dict, Optional
 
-from .utils import transfer
-
-"""
-serialization: extending pickler/unpickler
-"""
-
-
-class CustomPickler(Pickler):
-    pass
-
-
-class CustomUnpickler(Unpickler):
-    pass
-
+from .utils import StreamingUtils
 
 """
 environment
@@ -105,7 +91,7 @@ class PickleComponentAtomicChange(AtomicChange):
 
     def transfer(self, output: BinaryIO):
         self._check_and_set_processed()
-        transfer(self._payload, output)
+        StreamingUtils.transfer(self._payload, output)
 
     def apply(self, env: Environment) -> None:
         self._check_and_set_processed()
