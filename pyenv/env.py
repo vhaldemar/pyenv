@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Iterable, BinaryIO, Dict, Optional, Set
 
-from .serialization import Serialization
+from .serialization import Serialization, Deserialization
 from .utils import StreamingUtils
 
 
@@ -42,9 +42,9 @@ class Environment(dict):
 
 
 class AtomicChange:
-    def __init__(self, change_id: str, serialization: Serialization):
+    def __init__(self, change_id: str, deserialization: Deserialization):
         self._change_id = change_id
-        self._serialization = serialization
+        self._deserialization = deserialization
 
     def id(self) -> str:
         return self._change_id
@@ -59,8 +59,8 @@ class AtomicChange:
 
 
 class PrimitiveAtomicChange(AtomicChange):
-    def __init__(self, change_id: str, name: str, value: bytes, serialization: Serialization):
-        super().__init__(change_id, serialization)
+    def __init__(self, change_id: str, name: str, value: bytes, deserialization: Deserialization):
+        super().__init__(change_id, deserialization)
         self._value = value
         self._name = name
 
@@ -79,8 +79,8 @@ class PrimitiveAtomicChange(AtomicChange):
 
 
 class PickleComponentAtomicChange(AtomicChange):
-    def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO, serialization: Serialization):
-        super().__init__(change_id, serialization)
+    def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO, deserialization: Deserialization):
+        super().__init__(change_id, deserialization)
         self._payload = payload
         self._component_names = set(var_names)
         self._processed = False
