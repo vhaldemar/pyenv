@@ -1,5 +1,5 @@
 from pickle import Pickler
-from typing import BinaryIO, Dict, Iterable
+from typing import BinaryIO, Dict, Iterable, TypeVar, Generic, Type
 
 
 def transfer(src: BinaryIO, dst: BinaryIO):
@@ -10,8 +10,12 @@ def to_bytes(src: BinaryIO) -> bytes:
     pass
 
 
-class PicklerAgent:
-    def __init__(self, pickle: Pickler):
+T = TypeVar('T', bound=Pickler)
+
+
+class PicklerAgent(Generic[T]):
+    def __init__(self,  cls: Type[T]):
+        self._cls = cls
         pass
 
     def clusters(self, variables: Dict[str, object], dirty: Iterable[str]) -> Iterable[Iterable[str]]:
@@ -21,4 +25,5 @@ class PicklerAgent:
         pass
 
     def dump_clustered(self, variables: Dict[str, object], dirty: Iterable[str]) -> (BinaryIO, Iterable[Iterable[str]]):
+        # pickler = self._cls(...)
         pass
