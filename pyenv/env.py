@@ -2,12 +2,12 @@ import uuid
 from abc import abstractmethod
 from typing import Iterable, BinaryIO, Dict, Optional, Set
 
-from .serialization import Serialization, Deserialization
+from .serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump
 from .utils import StreamingUtils
 
 
 class Environment(dict):
-    def __init__(self, init: Dict[str, object], serialization: Serialization, deserialization: Deserialization):
+    def __init__(self, init: Dict[str, object], serialization: Serializer, deserialization: Deserializer):
         super().__init__(init)
         self._serialization = serialization
         self._deserialization = deserialization
@@ -41,17 +41,21 @@ class Environment(dict):
         # 1. Find out dirty vars
         # 2. Compute connected components that contain dirty vars
         # 3. Serialize dirty vars/components using CustomPickler or some human-readable serialization for primitives
-        dumped = self._serialization.dump(super(), self._dirty)
+        dumps = self._serialization.dump(super(), self._dirty)
         changes = []
-        for dc in dumped:
-            payload = BinaryIO()
-            dc.transfer(payload)
-            changes.append(ComponentAtomicChange(str(uuid.uuid1()), dc.var_names(), payload, self._deserialization))
+        for dump in dumps:
+            change = None
+            if isinstance(dump, PrimitiveDump):
+                change = PrimitiveAtomicChange(str(uuid.uuid1()), dump.name(), dump.value(), self._deserialization)
+            if isinstance(dump, ComponentDump):
+                change = ComponentAtomicChange(str(uuid.uuid1()), dc.var_names(), dump.value(), self._deserialization)
+            if change is not None:
+                changes.append(change)
         return changes
 
 
 class AtomicChange:
-    def __init__(self, change_id: str, deserialization: Deserialization):
+    def __init__(self, change_id: str, deserialization: Deserializer):
         self._change_id = change_id
         self._deserialization = deserialization
 
@@ -68,27 +72,35 @@ class AtomicChange:
 
 
 class PrimitiveAtomicChange(AtomicChange):
-    def __init__(self, change_id: str, name: str, value: bytes, deserialization: Deserialization):
+    def __init__(self, change_id: str, name: str, payload: BinaryIO, deserialization: Deserializer):
         super().__init__(change_id, deserialization)
-        self._value = value
+        self._payload = payload
         self._name = name
+        self._processed = False
 
     def name(self) -> str:
         return self._name
 
     def apply(self, env: Environment) -> None:
-        env[self._name] = self._deserialize()
-        env.unmark_dirty(self._name)
+        self._check_and_set_processed()
+        loaded = self._deserialization.load(self._payload)
+        value = loaded.variables().get(self._name)
+        if value is not None:
+            env[self._name] = value
+            env.unmark_dirty(self._name)
 
     def transfer(self, output: BinaryIO) -> None:
-        output.write(self._value)
+        self._check_and_set_processed()
+        StreamingUtils.transfer(self._payload, output)
 
-    def _deserialize(self) -> object:
-        pass
+    def _check_and_set_processed(self) -> None:
+        if self._processed:
+            raise IOError('Data has been already processed')
+        self._processed = True
 
 
 class ComponentAtomicChange(AtomicChange):
-    def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO, deserialization: Deserialization):
+    def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO, deserialization: Deserializer):
         super().__init__(change_id, deserialization)
         self._payload = payload
         self._component_names = set(var_names)
@@ -105,10 +117,7 @@ class ComponentAtomicChange(AtomicChange):
         self._check_and_set_processed()
 
         loaded = self._deserialization.load(self._payload)
-        lc = next(loaded.__iter__(), None)
-        if lc is None:
-            raise IOError("Component wasn't loaded")
-        variables = lc.variables()
+        variables = loaded.variables()
 
         for name in self._component_names:
             value = variables.get(name)

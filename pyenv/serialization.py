@@ -2,8 +2,6 @@ from abc import abstractmethod
 from pickle import Pickler, Unpickler
 from typing import BinaryIO, Iterable, Dict, Set
 
-from .utils import StreamingUtils
-
 
 class CustomPickler(Pickler):
     pass
@@ -13,24 +11,34 @@ class CustomUnpickler(Unpickler):
     pass
 
 
-class DumpedComponent:
-    def __init__(self, value: BinaryIO, var_names: Set[str], non_serialized_vars: Set[str]):
+class Dump:
+    def __init__(self, value: BinaryIO, non_serialized_vars: Set[str]):
         self._value = value
-        self._var_names = set(var_names)
         self._non_serialized_vars = set(non_serialized_vars)
-        self._processed = False
 
-    def var_names(self) -> Set[str]:
-        return set(self._var_names)
+    def value(self) -> BinaryIO:
+        return self._value
 
     def non_serialized_vars(self) -> Set[str]:
         return set(self._non_serialized_vars)
 
-    def transfer(self, output: BinaryIO) -> None:
-        if self._processed:
-            raise IOError('Data has been already processed')
-        self._processed = True
-        StreamingUtils.transfer(self._value, output)
+
+class PrimitiveDump(Dump):
+    def __init__(self, value: BinaryIO, name: str, non_serialized_vars: Set[str]):
+        super().__init__(value, non_serialized_vars)
+        self._name = name
+
+    def name(self) -> str:
+        return self._name
+
+
+class ComponentDump(Dump):
+    def __init__(self, value: BinaryIO, var_names: Set[str], non_serialized_vars: Set[str]):
+        super().__init__(value, non_serialized_vars)
+        self._var_names = set(var_names)
+
+    def var_names(self) -> Set[str]:
+        return set(self._var_names)
 
 
 class LoadedComponent:
@@ -45,13 +53,13 @@ class LoadedComponent:
         return set(self._non_deserialized_vars)
 
 
-class Serialization:
+class Serializer:
     @abstractmethod
-    def dump(self, variables: Dict[str, object], dirty: Iterable[str]) -> Iterable[DumpedComponent]:
+    def dump(self, variables: Dict[str, object], dirty: Iterable[str]) -> Iterable[Dump]:
         pass
 
 
-class Deserialization:
+class Deserializer:
     @abstractmethod
-    def load(self, raw: BinaryIO) -> Iterable[LoadedComponent]:
+    def load(self, raw: BinaryIO) -> LoadedComponent:
         pass
