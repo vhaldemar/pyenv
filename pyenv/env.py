@@ -55,9 +55,11 @@ class Environment(dict):
 
 
 class AtomicChange:
-    def __init__(self, change_id: str, deserialization: Deserializer):
+    def __init__(self, change_id: str, payload: BinaryIO, deserialization: Deserializer):
         self._change_id = change_id
+        self._payload = payload
         self._deserialization = deserialization
+        self._processed = False
 
     def id(self) -> str:
         return self._change_id
@@ -66,17 +68,20 @@ class AtomicChange:
     def apply(self, env: Environment) -> None:
         pass
 
-    @abstractmethod
-    def transfer(self, output: BinaryIO) -> None:
-        pass
+    def transfer(self, output: BinaryIO):
+        self._check_and_set_processed()
+        StreamingUtils.transfer(self._payload, output)
+
+    def _check_and_set_processed(self) -> None:
+        if self._processed:
+            raise IOError('Data has been already processed')
+        self._processed = True
 
 
 class PrimitiveAtomicChange(AtomicChange):
     def __init__(self, change_id: str, name: str, payload: BinaryIO, deserialization: Deserializer):
-        super().__init__(change_id, deserialization)
-        self._payload = payload
+        super().__init__(change_id, payload, deserialization)
         self._name = name
-        self._processed = False
 
     def name(self) -> str:
         return self._name
@@ -89,29 +94,14 @@ class PrimitiveAtomicChange(AtomicChange):
             env[self._name] = value
             env.unmark_dirty(self._name)
 
-    def transfer(self, output: BinaryIO) -> None:
-        self._check_and_set_processed()
-        StreamingUtils.transfer(self._payload, output)
-
-    def _check_and_set_processed(self) -> None:
-        if self._processed:
-            raise IOError('Data has been already processed')
-        self._processed = True
-
 
 class ComponentAtomicChange(AtomicChange):
     def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO, deserialization: Deserializer):
-        super().__init__(change_id, deserialization)
-        self._payload = payload
+        super().__init__(change_id, payload, deserialization)
         self._component_names = set(var_names)
-        self._processed = False
 
     def component_names(self) -> Set[str]:
         return set(self._component_names)
-
-    def transfer(self, output: BinaryIO):
-        self._check_and_set_processed()
-        StreamingUtils.transfer(self._payload, output)
 
     def apply(self, env: Environment) -> None:
         self._check_and_set_processed()
@@ -124,8 +114,3 @@ class ComponentAtomicChange(AtomicChange):
             if value is not None:
                 env[name] = value
                 env.unmark_dirty(name)
-
-    def _check_and_set_processed(self) -> None:
-        if self._processed:
-            raise IOError('Data has been already processed')
-        self._processed = True
