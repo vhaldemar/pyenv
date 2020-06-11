@@ -1,6 +1,6 @@
 import uuid
 from abc import abstractmethod
-from typing import Iterable, BinaryIO, Dict, Optional, Set
+from typing import Iterable, BinaryIO, Dict, Set
 
 from .serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump
 from .utils import StreamingUtils
@@ -38,20 +38,16 @@ class Environment(dict):
     # noinspection PyUnresolvedReferences
     @abstractmethod
     def commit(self) -> Iterable[AtomicChange]:
-        # 1. Find out dirty vars
-        # 2. Compute connected components that contain dirty vars
-        # 3. Serialize dirty vars/components using CustomPickler or some human-readable serialization for primitives
         dumps = self._serialization.dump(super(), self._dirty)
-        changes = []
         for dump in dumps:
             change = None
             if isinstance(dump, PrimitiveDump):
                 change = PrimitiveAtomicChange(str(uuid.uuid1()), dump.name(), dump.value(), self._deserialization)
-            if isinstance(dump, ComponentDump):
+            elif isinstance(dump, ComponentDump):
                 change = ComponentAtomicChange(str(uuid.uuid1()), dc.var_names(), dump.value(), self._deserialization)
+
             if change is not None:
-                changes.append(change)
-        return changes
+                yield change
 
 
 class AtomicChange:
