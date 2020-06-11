@@ -41,10 +41,11 @@ class Environment(dict):
         dumps = self._serialization.dump(super(), self._dirty)
         for dump in dumps:
             change = None
+            change_id = str(uuid.uuid1())
             if isinstance(dump, PrimitiveDump):
-                change = PrimitiveAtomicChange(str(uuid.uuid1()), dump.name(), dump.value(), self._deserialization)
+                change = PrimitiveAtomicChange(change_id, dump.name(), dump.payload(), self._deserialization)
             elif isinstance(dump, ComponentDump):
-                change = ComponentAtomicChange(str(uuid.uuid1()), dc.var_names(), dump.value(), self._deserialization)
+                change = ComponentAtomicChange(change_id, dc.var_names(), dump.payload(), self._deserialization)
 
             if change is not None:
                 yield change
@@ -60,11 +61,11 @@ class AtomicChange:
     def id(self) -> str:
         return self._change_id
 
-    @abstractmethod
     def apply(self, env: Environment) -> None:
-        pass
+        self._check_and_set_processed()
+        self._do_apply(env)
 
-    def transfer(self, output: BinaryIO):
+    def transfer(self, output: BinaryIO) -> None:
         self._check_and_set_processed()
         StreamingUtils.transfer(self._payload, output)
 
@@ -72,6 +73,10 @@ class AtomicChange:
         if self._processed:
             raise IOError('Data has been already processed')
         self._processed = True
+
+    @abstractmethod
+    def _do_apply(self, env: Environment) -> None:
+        pass
 
 
 class PrimitiveAtomicChange(AtomicChange):
@@ -82,8 +87,7 @@ class PrimitiveAtomicChange(AtomicChange):
     def name(self) -> str:
         return self._name
 
-    def apply(self, env: Environment) -> None:
-        self._check_and_set_processed()
+    def _do_apply(self, env: Environment) -> None:
         loaded = self._deserialization.load(self._payload)
         value = loaded.variables().get(self._name)
         if value is not None:
@@ -99,8 +103,7 @@ class ComponentAtomicChange(AtomicChange):
     def component_names(self) -> Set[str]:
         return set(self._component_names)
 
-    def apply(self, env: Environment) -> None:
-        self._check_and_set_processed()
+    def _do_apply(self, env: Environment) -> None:
         loaded = self._deserialization.load(self._payload)
         variables = loaded.variables()
         for name in self._component_names:

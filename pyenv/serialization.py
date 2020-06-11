@@ -12,16 +12,16 @@ class CustomUnpickler(Unpickler):
 
 
 class Dump:
-    def __init__(self, value: BinaryIO):
-        self._value = value
+    def __init__(self, payload: BinaryIO):
+        self._payload = payload
 
-    def value(self) -> BinaryIO:
-        return self._value
+    def payload(self) -> BinaryIO:
+        return self._payload
 
 
 class PrimitiveDump(Dump):
-    def __init__(self, value: BinaryIO, name: str):
-        super().__init__(value)
+    def __init__(self, payload: BinaryIO, name: str):
+        super().__init__(payload)
         self._name = name
 
     def name(self) -> str:
@@ -29,8 +29,8 @@ class PrimitiveDump(Dump):
 
 
 class ComponentDump(Dump):
-    def __init__(self, value: BinaryIO, var_names: Set[str], non_serialized_vars: Set[str]):
-        super().__init__(value)
+    def __init__(self, payload: BinaryIO, var_names: Set[str], non_serialized_vars: Set[str]):
+        super().__init__(payload)
         self._var_names = set(var_names)
         self._non_serialized_vars = set(non_serialized_vars)
 
