@@ -1,3 +1,4 @@
+import uuid
 from abc import abstractmethod
 from typing import Iterable, BinaryIO, Dict, Optional, Set
 
@@ -6,9 +7,11 @@ from .utils import StreamingUtils
 
 
 class Environment(dict):
-    def __init__(self, init: Dict[str, object], serialization: Serialization):
+    def __init__(self, init: Dict[str, object], serialization: Serialization, deserialization: Deserialization):
         super().__init__(init)
         self._serialization = serialization
+        self._deserialization = deserialization
+        self._dirty = set()
 
     def __setitem__(self, name: str, value: object) -> None:
         super().__setitem__(name, value)
@@ -26,11 +29,11 @@ class Environment(dict):
 
     @abstractmethod
     def mark_dirty(self, path: str) -> None:
-        pass
+        self._dirty.add(path)
 
     @abstractmethod
     def unmark_dirty(self, path: str) -> None:
-        pass
+        self._dirty.remove(path)
 
     # noinspection PyUnresolvedReferences
     @abstractmethod
@@ -38,7 +41,13 @@ class Environment(dict):
         # 1. Find out dirty vars
         # 2. Compute connected components that contain dirty vars
         # 3. Serialize dirty vars/components using CustomPickler or some human-readable serialization for primitives
-        pass
+        dumped = self._serialization.dump(super(), self._dirty)
+        changes = []
+        for dc in dumped:
+            payload = BinaryIO()
+            dc.transfer(payload)
+            changes.append(ComponentAtomicChange(str(uuid.uuid1()), dc.var_names(), payload, self._deserialization))
+        return changes
 
 
 class AtomicChange:
@@ -78,7 +87,7 @@ class PrimitiveAtomicChange(AtomicChange):
         pass
 
 
-class PickleComponentAtomicChange(AtomicChange):
+class ComponentAtomicChange(AtomicChange):
     def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO, deserialization: Deserialization):
         super().__init__(change_id, deserialization)
         self._payload = payload
@@ -94,8 +103,15 @@ class PickleComponentAtomicChange(AtomicChange):
 
     def apply(self, env: Environment) -> None:
         self._check_and_set_processed()
+
+        loaded = self._deserialization.load(self._payload)
+        lc = next(loaded.__iter__(), None)
+        if lc is None:
+            raise IOError("Component wasn't loaded")
+        variables = lc.variables()
+
         for name in self._component_names:
-            value = self._deserialize_value()
+            value = variables.get(name)
             if value is not None:
                 env[name] = value
                 env.unmark_dirty(name)
@@ -104,7 +120,3 @@ class PickleComponentAtomicChange(AtomicChange):
         if self._processed:
             raise IOError('Data has been already processed')
         self._processed = True
-
-    def _deserialize_value(self) -> Optional[object]:
-        # deserialize using CustomUnpickler
-        pass
