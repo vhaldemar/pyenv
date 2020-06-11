@@ -105,10 +105,8 @@ class ComponentAtomicChange(AtomicChange):
 
     def apply(self, env: Environment) -> None:
         self._check_and_set_processed()
-
         loaded = self._deserialization.load(self._payload)
         variables = loaded.variables()
-
         for name in self._component_names:
             value = variables.get(name)
             if value is not None:
