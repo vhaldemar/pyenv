@@ -12,10 +12,12 @@ class Environment(dict):
         self._serialization = serialization
         self._deserialization = deserialization
         self._dirty = set()
+        self._deleted = set()
 
     def __setitem__(self, name: str, value: object) -> None:
         super().__setitem__(name, value)
         self.mark_dirty(name)
+        self._deleted.remove(name)
 
     def __getitem__(self, name: str) -> object:
         if super().__contains__(name):
@@ -24,7 +26,7 @@ class Environment(dict):
 
     def __delitem__(self, name: str) -> None:
         if super().__contains__(name):
-            self.mark_dirty(name)
+            self._deleted.add(name)
         super().__delitem__(name)
 
     @abstractmethod
@@ -46,16 +48,43 @@ class Environment(dict):
                 change = PrimitiveAtomicChange(change_id, dump.name(), dump.payload(), self._deserialization)
             elif isinstance(dump, ComponentDump):
                 change = ComponentAtomicChange(change_id, dc.var_names(), dump.payload(), self._deserialization)
-
             if change is not None:
                 yield change
 
+        for var_name in self._deleted:
+            yield RemoveAtomicChange(str(uuid.uuid1()), var_name, self._deserialization)
+        self._deleted.clear()
+
 
 class AtomicChange:
-    def __init__(self, change_id: str, payload: BinaryIO, deserialization: Deserializer):
+    def __init__(self, change_id: str, deserialization: Deserializer):
         self._change_id = change_id
-        self._payload = payload
         self._deserialization = deserialization
+
+    def id(self) -> str:
+        return self._change_id
+
+    @abstractmethod
+    def apply(self, env: Environment) -> None:
+        pass
+
+
+class RemoveAtomicChange(AtomicChange):
+    def __init__(self, change_id: str, name: str, deserialization: Deserializer):
+        super().__init__(change_id, deserialization)
+        self._name = name
+
+    def name(self) -> str:
+        return self._name
+
+    def apply(self, env: Environment) -> None:
+        env.__delitem__(self._name)
+
+
+class PayloadAtomicChange(AtomicChange):
+    def __init__(self, change_id: str, payload: BinaryIO, deserialization: Deserializer):
+        super().__init__(change_id, deserialization)
+        self._payload = payload
         self._processed = False
 
     def id(self) -> str:
@@ -79,7 +108,7 @@ class AtomicChange:
         pass
 
 
-class PrimitiveAtomicChange(AtomicChange):
+class PrimitiveAtomicChange(PayloadAtomicChange):
     def __init__(self, change_id: str, name: str, payload: BinaryIO, deserialization: Deserializer):
         super().__init__(change_id, payload, deserialization)
         self._name = name
@@ -95,7 +124,7 @@ class PrimitiveAtomicChange(AtomicChange):
             env.unmark_dirty(self._name)
 
 
-class ComponentAtomicChange(AtomicChange):
+class ComponentAtomicChange(PayloadAtomicChange):
     def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO, deserialization: Deserializer):
         super().__init__(change_id, payload, deserialization)
         self._component_names = set(var_names)
