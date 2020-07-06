@@ -6,7 +6,7 @@ from .serialization import Serializer, Deserializer, PrimitiveDump, ComponentDum
 from .utils import StreamingUtils
 
 
-class Environment(dict):
+class Namespace(dict):
     def __init__(self, init: Dict[str, object], serialization: Serializer, deserialization: Deserializer):
         super().__init__(init)
         self._serialization = serialization
@@ -29,16 +29,13 @@ class Environment(dict):
             self._deleted.add(name)
         super().__delitem__(name)
 
-    @abstractmethod
     def mark_dirty(self, path: str) -> None:
         self._dirty.add(path)
 
-    @abstractmethod
     def unmark_dirty(self, path: str) -> None:
         self._dirty.remove(path)
 
     # noinspection PyUnresolvedReferences
-    @abstractmethod
     def commit(self) -> Iterable[AtomicChange]:
         dumps = self._serialization.dump(super(), self._dirty)
         for dump in dumps:
@@ -65,7 +62,7 @@ class AtomicChange:
         return self._change_id
 
     @abstractmethod
-    def apply(self, env: Environment) -> None:
+    def apply(self, ns: Namespace) -> None:
         pass
 
 
@@ -77,8 +74,8 @@ class RemoveAtomicChange(AtomicChange):
     def name(self) -> str:
         return self._name
 
-    def apply(self, env: Environment) -> None:
-        env.__delitem__(self._name)
+    def apply(self, ns: Namespace) -> None:
+        ns.__delitem__(self._name)
 
 
 class PayloadAtomicChange(AtomicChange):
@@ -90,9 +87,9 @@ class PayloadAtomicChange(AtomicChange):
     def id(self) -> str:
         return self._change_id
 
-    def apply(self, env: Environment) -> None:
+    def apply(self, ns: Namespace) -> None:
         self._check_and_set_processed()
-        self._do_apply(env)
+        self._do_apply(ns)
 
     def transfer(self, output: BinaryIO) -> None:
         self._check_and_set_processed()
@@ -104,7 +101,7 @@ class PayloadAtomicChange(AtomicChange):
         self._processed = True
 
     @abstractmethod
-    def _do_apply(self, env: Environment) -> None:
+    def _do_apply(self, ns: Namespace) -> None:
         pass
 
 
@@ -116,12 +113,12 @@ class PrimitiveAtomicChange(PayloadAtomicChange):
     def name(self) -> str:
         return self._name
 
-    def _do_apply(self, env: Environment) -> None:
+    def _do_apply(self, ns: Namespace) -> None:
         loaded = self._deserialization.load(self._payload)
         value = loaded.variables().get(self._name)
         if value is not None:
-            env[self._name] = value
-            env.unmark_dirty(self._name)
+            ns[self._name] = value
+            ns.unmark_dirty(self._name)
 
 
 class ComponentAtomicChange(PayloadAtomicChange):
@@ -132,11 +129,11 @@ class ComponentAtomicChange(PayloadAtomicChange):
     def component_names(self) -> Set[str]:
         return set(self._component_names)
 
-    def _do_apply(self, env: Environment) -> None:
+    def _do_apply(self, ns: Namespace) -> None:
         loaded = self._deserialization.load(self._payload)
         variables = loaded.variables()
         for name in self._component_names:
             value = variables.get(name)
             if value is not None:
-                env[name] = value
-                env.unmark_dirty(name)
+                ns[name] = value
+                ns.unmark_dirty(name)
