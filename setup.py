@@ -1,10 +1,10 @@
 import setuptools
 
 setuptools.setup(
-    name='pyenv',
+    name='ipystate',
     version='0.0.1',
     package_dir={'': 'src/main/python'},
-    packages=['pyenv'],
+    packages=['ipystate'],
     install_requires=[
         'ipython==7.13.0',
     ],
