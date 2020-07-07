@@ -13,7 +13,7 @@ class AtomicChange:
         return self._change_id
 
     @abstractmethod
-    def apply(self, ns) -> None:
+    def apply(self, ns: 'Namespace') -> None:
         pass
 
 
@@ -25,7 +25,7 @@ class RemoveAtomicChange(AtomicChange):
     def name(self) -> str:
         return self._name
 
-    def apply(self, ns) -> None:
+    def apply(self, ns: 'Namespace') -> None:
         ns.__delitem__(self._name)
 
 
@@ -38,7 +38,7 @@ class PayloadAtomicChange(AtomicChange):
     def id(self) -> str:
         return self._change_id
 
-    def apply(self, ns) -> None:
+    def apply(self, ns: 'Namespace') -> None:
         self._check_and_set_processed()
         self._do_apply(ns)
 
@@ -52,7 +52,7 @@ class PayloadAtomicChange(AtomicChange):
         self._processed = True
 
     @abstractmethod
-    def _do_apply(self, ns) -> None:
+    def _do_apply(self, ns: 'Namespace') -> None:
         pass
 
 
@@ -64,7 +64,7 @@ class PrimitiveAtomicChange(PayloadAtomicChange):
     def name(self) -> str:
         return self._name
 
-    def _do_apply(self, ns) -> None:
+    def _do_apply(self, ns: 'Namespace') -> None:
         loaded = self._deserialization.load(self._payload)
         value = loaded.variables().get(self._name)
         if value is not None:
@@ -80,7 +80,7 @@ class ComponentAtomicChange(PayloadAtomicChange):
     def component_names(self) -> Set[str]:
         return set(self._component_names)
 
-    def _do_apply(self, ns) -> None:
+    def _do_apply(self, ns: 'Namespace') -> None:
         loaded = self._deserialization.load(self._payload)
         variables = loaded.variables()
         for name in self._component_names:

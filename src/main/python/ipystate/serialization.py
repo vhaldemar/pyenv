@@ -2,15 +2,6 @@ from abc import abstractmethod
 from pickle import Pickler, Unpickler
 from typing import BinaryIO, Iterable, Dict, Set
 
-
-class CustomPickler(Pickler):
-    pass
-
-
-class CustomUnpickler(Unpickler):
-    pass
-
-
 class Dump:
     def __init__(self, payload: BinaryIO, non_serialized_vars: Set[str]):
         self._payload = payload
