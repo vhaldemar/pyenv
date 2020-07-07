@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from pickle import Pickler, Unpickler
 from typing import BinaryIO, Iterable, Dict, Set
 
 class Dump:
