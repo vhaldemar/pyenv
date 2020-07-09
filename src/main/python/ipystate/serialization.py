@@ -9,34 +9,31 @@ class ComponentStruct:
         return self._var_names
 
 class Dump:
-    def __init__(self, payload: BinaryIO, non_serialized_vars: Set[str]):
+    def __init__(self, payload: BinaryIO):
         self._payload = payload
-        self._non_serialized_vars = set(non_serialized_vars)
 
     def payload(self) -> BinaryIO:
         return self._payload
 
-    def non_serialized_vars(self) -> Set[str]:
-        return set(self._non_serialized_vars)
-
-
 class PrimitiveDump(Dump):
-    def __init__(self, payload: BinaryIO, name: str, non_serialized_vars: Set[str]):
-        super().__init__(payload, non_serialized_vars)
+    def __init__(self, name: str, payload: BinaryIO):
+        super().__init__(payload)
         self._name = name
 
     def name(self) -> str:
         return self._name
 
-
 class ComponentDump(Dump):
-    def __init__(self, payload: BinaryIO, var_names: Set[str], non_serialized_vars: Set[str]):
-        super().__init__(payload, non_serialized_vars)
+    def __init__(self, var_names: Set[str], payload: BinaryIO, non_serialized_vars: Set[str]):
+        super().__init__(payload)
         self._var_names = set(var_names)
+        self._non_serialized_vars = set(non_serialized_vars)
 
     def var_names(self) -> Set[str]:
         return set(self._var_names)
 
+    def non_serialized_vars(self) -> Set[str]:
+        return set(self._non_serialized_vars)
 
 class LoadedComponent:
     def __init__(self, variables: Dict[str, object], non_deserialized_vars: Set[str]):
