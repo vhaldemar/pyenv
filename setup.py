@@ -4,7 +4,7 @@ setuptools.setup(
     name='ipystate',
     version='0.0.1',
     package_dir={'': 'src/main/python'},
-    packages=['ipystate'],
+    packages=['ipystate', 'ipystate/impl'],
     install_requires=[
         'ipython==7.13.0',
     ],
