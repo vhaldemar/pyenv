@@ -1,6 +1,6 @@
 from abc import abstractmethod
 
-from .serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump
+from .serialization import Deserializer
 from .utils import StreamingUtils
 from typing import BinaryIO, Set
 

@@ -1,11 +1,9 @@
 import uuid
 
-from .serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump
+from typing import Iterable, Dict, Tuple
 
-from typing import Iterable, BinaryIO, Dict, Set
-
+from ipystate.serialization import Serializer, Deserializer, ComponentStruct, PrimitiveDump, ComponentDump
 from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
-
 
 class Namespace(dict):
     def __init__(self, init: Dict[str, object], serialization: Serializer, deserialization: Deserializer):
@@ -39,8 +37,9 @@ class Namespace(dict):
             self._dirty.remove(path)
 
     # noinspection PyUnresolvedReferences
-    def commit(self) -> Iterable[AtomicChange]:
-        dumps = self._serialization.dump(super(), self._dirty)
+    def commit(self) -> Tuple[Iterable[ComponentStruct],Iterable[AtomicChange]]:
+        components, dumps = self._serialization.dump(super(), self._dirty)
+        changes = []
         for dump in dumps:
             change = None
             change_id = str(uuid.uuid1())
@@ -49,11 +48,13 @@ class Namespace(dict):
             elif isinstance(dump, ComponentDump):
                 change = ComponentAtomicChange(change_id, dc.var_names(), dump.payload(), self._deserialization)
             if change is not None:
-                yield change
+                changes.append(change)
 
         for var_name in self._deleted:
-            yield RemoveAtomicChange(str(uuid.uuid1()), var_name, self._deserialization)
+            changes.append(RemoveAtomicChange(str(uuid.uuid1()), var_name, self._deserialization))
 
         self._deleted.clear()
         self._dirty.clear()
+
+        return components, changes
 

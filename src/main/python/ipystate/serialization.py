@@ -1,5 +1,12 @@
 from abc import abstractmethod
-from typing import BinaryIO, Iterable, Dict, Set
+from typing import BinaryIO, Iterable, Dict, Set, Tuple
+
+class ComponentStruct:
+    def __init__(self, var_names: Set[str]):
+        self._var_names = var_names
+
+    def var_names(self) -> Set[str]:
+        return self._var_names
 
 class Dump:
     def __init__(self, payload: BinaryIO, non_serialized_vars: Set[str]):
@@ -45,7 +52,7 @@ class LoadedComponent:
 
 class Serializer:
     @abstractmethod
-    def dump(self, variables: Dict[str, object], dirty: Iterable[str]) -> Iterable[Dump]:
+    def dump(self, variables: Dict[str, object], dirty: Iterable[str]) -> Tuple[Iterable[ComponentStruct], Iterable[Dump]]:
         pass
 
 
