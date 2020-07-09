@@ -46,7 +46,7 @@ class Namespace(dict):
             if isinstance(dump, PrimitiveDump):
                 change = PrimitiveAtomicChange(change_id, dump.name(), dump.payload(), self._deserialization)
             elif isinstance(dump, ComponentDump):
-                change = ComponentAtomicChange(change_id, dc.var_names(), dump.payload(), self._deserialization)
+                change = ComponentAtomicChange(change_id, dump.var_names(), dump.payload(), self._deserialization)
             if change is not None:
                 changes.append(change)
 
