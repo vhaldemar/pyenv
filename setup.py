@@ -7,6 +7,7 @@ setuptools.setup(
     packages=['ipystate', 'ipystate/impl'],
     install_requires=[
         'ipython==7.13.0',
+        'cloudpickle==1.2.2',
     ],
     python_requires='>=3.7',
     classifiers=[

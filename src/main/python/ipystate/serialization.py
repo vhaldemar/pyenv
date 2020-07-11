@@ -1,12 +1,14 @@
 import sys
 
 from abc import abstractmethod
-from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any
+from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO
 
-from pickle import Pickler, Unpickler
+# from pickle import Pickler, Unpickler
+from cloudpickle import CloudPickler
 
 from .impl.components_fuser import ComponentsFuser
 from .impl.walker import Walker
+from .impl.memo import ChunkedFile, TransactionalDict
 
 class ComponentStruct:
     def __init__(self, var_names: Set[str]):
@@ -55,10 +57,20 @@ class LoadedComponent:
 
 
 class Serializer:
-
-    def __init__(self, pickler: Pickler):
-        self._pickler = pickler
+    def __init__(self):
         self._walker = Walker()
+
+    def _string_to_bytes(s: str) -> bytes:
+        return s.encode('utf-8')
+
+    def _bytes_to_string(b: bytes) -> str:
+        return b.decode('utf-8')
+
+    def _int_to_bytes(x: int) -> bytes:
+        return x.to_bytes(8, 'big')
+
+    def _bytes_to_int(b: bytes) -> int:
+        return int.from_bytes(b, "big")
 
     @abstractmethod
     def _is_persistable_var(self, name: str) -> bool:
@@ -82,47 +94,51 @@ class Serializer:
     def _primitive_var_payload(self, name: str, value: Any) -> BinaryIO:
         pass
 
-    def _start_var_pickling(self, name: str, value: Any) -> Pickler:
-        return self._pickler
+    def _new_pickler(self, file: IO[bytes]):
+        return CloudPickler(file)
 
-    def _on_var_pickled(self, pickler: Pickler, name: str, value: Any):
+    def _on_var_serialize_error(self, name: str, value: Any, e: Exception):
         pass
 
-    def _on_var_pickle_error(self, pickler: Pickler, name: str, value: Any, ex: Exception):
-        pass
-
-    def _on_var_pickle_finally(self, pickler: Pickler, name: str, value: Any):
-        pass
-
-    # @abstractmethod
-    # def _component_payload(self, name, value):
-    #     pass
+    def _dump_component_primitive(self, name: str, value: Any) -> Dump:
+        # TODO report primitive var error to non serialized
+        payload = self._primitive_var_payload(name, value)
+        return PrimitiveDump(name=name, payload=payload)
 
     def _dump_component_pickle(self, component: Set[str], all_variables: Dict[str, object]) -> Dump:
-        var_names = set()
+        serialized_var_names = set()
+        non_serialized_var_names = set()
+
+        cf = ChunkedFile()
+        pickler = self._new_pickler(cf)
+        pickler.memo = TransactionalDict(pickler.memo)
+
         payload = bytearray()
-        non_serialized_vars = set()
 
         comp_sorted_vars = sorted(component)
         for var_name in comp_sorted_vars:
             var_value = all_variables.get(var_name)
-            pickler = self._start_var_pickling(var_name, var_value)
             try:
-                self._on_var_pickled(pickler, var_name, var_value)
+                pickler.dump(var_value)
+                pickler.memo.commit()
+                val = cf.current_chunk()
+                payload.extend(Serializer._int_to_bytes(len(val)))
+                payload.extend(val)
+                serialized_var_names.add(var_name)
             except Exception as e:
-                self._on_var_pickle_error(pickler, var_name, var_value, e)
+                pickler.memo.rollback()
+                non_serialized_var_names.add(var_name)
+                self._on_var_serialize_error(var_name, var_value, e)
             finally:
-                self._on_var_pickle_finally(pickler, var_name, var_value)
+                cf.reset()
 
-        # TODO pickle
-        return ComponentDump(var_names=var_names, payload=payload, non_serialized_vars=non_serialized_vars)
+        return ComponentDump(var_names=serialized_var_names, payload=payload, non_serialized_vars=non_serialized_var_names)
 
     def _dump_component(self, component: Set[str], all_variables: Dict[str, object]) -> Dump:
         if len(component) == 1 and self._is_primitive(all_variables.get(list(component)[0])):
             name = list(component)[0]
             value = all_variables.get(name)
-            payload = self._primitive_var_payload(name, value)
-            return PrimitiveDump(name=name, payload=payload)
+            return self._dump_component_primitive(name, value)
         else:
             return self._dump_component_pickle(component, all_variables)
 
