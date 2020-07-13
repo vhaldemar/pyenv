@@ -1,7 +1,7 @@
 import sys
 
 from abc import abstractmethod
-from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO
+from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO, Union
 
 # from pickle import Pickler, Unpickler
 from cloudpickle import CloudPickler
@@ -55,11 +55,7 @@ class LoadedComponent:
     def non_deserialized_vars(self) -> Set[str]:
         return set(self._non_deserialized_vars)
 
-
-class Serializer:
-    def __init__(self):
-        self._walker = Walker()
-
+class BytesUtil:
     def _string_to_bytes(s: str) -> bytes:
         return s.encode('utf-8')
 
@@ -71,6 +67,10 @@ class Serializer:
 
     def _bytes_to_int(b: bytes) -> int:
         return int.from_bytes(b, "big")
+
+class Serializer:
+    def __init__(self):
+        self._walker = Walker()
 
     @abstractmethod
     def _is_persistable_var(self, name: str) -> bool:
@@ -115,6 +115,7 @@ class Serializer:
 
         payload = bytearray()
 
+        # TODO sort primitive vars to be first
         comp_sorted_vars = sorted(component)
         for var_name in comp_sorted_vars:
             var_value = all_variables.get(var_name)
@@ -122,7 +123,7 @@ class Serializer:
                 pickler.dump(var_value)
                 pickler.memo.commit()
                 val = cf.current_chunk()
-                payload.extend(Serializer._int_to_bytes(len(val)))
+                payload.extend(BytesUtil._int_to_bytes(len(val)))
                 payload.extend(val)
                 serialized_var_names.add(var_name)
             except Exception as e:
