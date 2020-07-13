@@ -105,6 +105,16 @@ class Serializer:
         payload = self._primitive_var_payload(name, value)
         return PrimitiveDump(name=name, payload=payload)
 
+    def _no_refs(self, value: Any) -> bool:
+        return self._is_primitive(value)
+
+    def _sort_component_vars(self, component: Set[str], all_variables: Dict[str, object]) -> Iterable[str]:
+        # secondary sort by name:
+        comp_sorted_vars = sorted(component)
+        # sort vars with no outgoing references to be first:
+        comp_sorted_vars = sorted(comp_sorted_vars, reverse=True, key=lambda varname: self._no_refs(all_variables.get(varname)))
+        return comp_sorted_vars
+
     def _dump_component_pickle(self, component: Set[str], all_variables: Dict[str, object]) -> Dump:
         serialized_var_names = set()
         non_serialized_var_names = set()
@@ -115,16 +125,15 @@ class Serializer:
 
         payload = bytearray()
 
-        # TODO sort primitive vars to be first
-        comp_sorted_vars = sorted(component)
+        comp_sorted_vars = self._sort_component_vars(component, all_variables)
         for var_name in comp_sorted_vars:
             var_value = all_variables.get(var_name)
             try:
                 pickler.dump(var_value)
                 pickler.memo.commit()
-                val = cf.current_chunk()
-                payload.extend(BytesUtil._int_to_bytes(len(val)))
-                payload.extend(val)
+                chunk = cf.current_chunk()
+                payload.extend(BytesUtil._int_to_bytes(len(chunk)))
+                payload.extend(chunk)
                 serialized_var_names.add(var_name)
             except Exception as e:
                 pickler.memo.rollback()
