@@ -1,4 +1,4 @@
-import sys
+import json
 
 from abc import abstractmethod
 from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO, Union
@@ -24,22 +24,38 @@ class Dump:
     def payload(self) -> BinaryIO:
         return self._payload
 
-class PrimitiveDump(Dump):
-    def __init__(self, name: str, payload: BinaryIO):
-        super().__init__(payload)
+class VarDecl:
+    def __init__(self, name: str, type: str):
         self._name = name
+        self._type = type
 
     def name(self) -> str:
         return self._name
 
-class ComponentDump(Dump):
-    def __init__(self, var_names: Set[str], payload: BinaryIO, non_serialized_vars: Set[str]):
+    def type(self) -> str:
+        return self._type
+
+class PrimitiveDump(Dump):
+    def __init__(self, var: VarDecl, payload: BinaryIO):
         super().__init__(payload)
-        self._var_names = set(var_names)
+        self._var = var
+
+    def var(self) -> VarDecl:
+        return self._var
+
+class ComponentDump(Dump):
+    def __init__(self, all_vars: Set[VarDecl], serialized_vars: Iterable[str], payload: BinaryIO, non_serialized_vars: Set[str]):
+        super().__init__(payload)
+        self._all_vars = set(all_vars)
+        self._serialized_vars = list(serialized_vars)
+        # TODO should we compute it from all_vars - serialized_vars?
         self._non_serialized_vars = set(non_serialized_vars)
 
-    def var_names(self) -> Set[str]:
-        return set(self._var_names)
+    def all_vars(self) -> Set[VarDecl]:
+        return set(self._all_vars)
+
+    def serialized_vars(self) -> Iterable[str]:
+        return set(self._serialized_vars)
 
     def non_serialized_vars(self) -> Set[str]:
         return set(self._non_serialized_vars)
@@ -91,7 +107,10 @@ class Serializer:
         return affected_var_names, all_components
 
     @abstractmethod
-    def _primitive_var_payload(self, name: str, value: Any) -> BinaryIO:
+    def _primitive_var_repr(self, value: Any) -> Tuple[BinaryIO, str]:
+        '''
+        Should return binary value representation and type string
+        '''
         pass
 
     def _new_pickler(self, file: IO[bytes]):
@@ -100,41 +119,57 @@ class Serializer:
     def _on_var_serialize_error(self, name: str, value: Any, e: Exception):
         pass
 
-    def _dump_component_primitive(self, name: str, value: Any) -> Dump:
-        # TODO report primitive var error to non serialized
-        payload = self._primitive_var_payload(name, value)
-        return PrimitiveDump(name=name, payload=payload)
+    def _dump_primitive_component(self, name: str, value: Any) -> Dump:
+        # TODO allow subclass to skip serializing this variable
+        # TODO  ... and report to non serialized
+        # TODO  ... and self._on_var_serialize_error()
+        payload, type = self._primitive_var_repr(value)
+        var = VarDecl(name=name, type=type)
+
+        return PrimitiveDump(var=var, payload=payload)
 
     def _no_refs(self, value: Any) -> bool:
+        '''Variable has no outgoing references and should be pickled in the beginning'''
         return self._is_primitive(value)
 
-    def _sort_component_vars(self, component: Set[str], all_variables: Dict[str, object]) -> Iterable[str]:
+    def _sort_component_vars(self, component: Set[str], ns: Dict[str, object]) -> Iterable[str]:
         # secondary sort by name:
         comp_sorted_vars = sorted(component)
         # sort vars with no outgoing references to be first:
-        comp_sorted_vars = sorted(comp_sorted_vars, reverse=True, key=lambda varname: self._no_refs(all_variables.get(varname)))
+        comp_sorted_vars = sorted(comp_sorted_vars, reverse=True, key=lambda varname: self._no_refs(ns.get(varname)))
         return comp_sorted_vars
 
-    def _dump_component_pickle(self, component: Set[str], all_variables: Dict[str, object]) -> Dump:
-        serialized_var_names = set()
+    def _component_decl(self, component: Set[str], ns: Dict[str, object]) -> Set[VarDecl]:
+        all_vars = set()
+        for var_name in component:
+            var_value = ns.get(var_name)
+            var_type = type(var_value)
+            var_type_str = var_type.__name__
+            all_vars.add(VarDecl(var_name, var_type_str))
+        return all_vars
+
+    def _dump_pickle_component(self, component: Set[str], ns: Dict[str, object]) -> Dump:
+        serialized_var_names = list()
         non_serialized_var_names = set()
 
         cf = ChunkedFile()
         pickler = self._new_pickler(cf)
         pickler.memo = TransactionalDict(pickler.memo)
 
-        payload = bytearray()
+        pickled = bytearray()
 
-        comp_sorted_vars = self._sort_component_vars(component, all_variables)
+        comp_sorted_vars = self._sort_component_vars(component, ns)
         for var_name in comp_sorted_vars:
-            var_value = all_variables.get(var_name)
+            var_value = ns.get(var_name)
+            # TODO allow subclass to skip serializing this variable
+            # TODO  and report to non serialized
             try:
                 pickler.dump(var_value)
                 pickler.memo.commit()
                 chunk = cf.current_chunk()
-                payload.extend(BytesUtil._int_to_bytes(len(chunk)))
-                payload.extend(chunk)
-                serialized_var_names.add(var_name)
+                pickled.extend(BytesUtil._int_to_bytes(len(chunk)))
+                pickled.extend(chunk)
+                serialized_var_names.append(var_name)
             except Exception as e:
                 pickler.memo.rollback()
                 non_serialized_var_names.add(var_name)
@@ -142,23 +177,24 @@ class Serializer:
             finally:
                 cf.reset()
 
-        return ComponentDump(var_names=serialized_var_names, payload=payload, non_serialized_vars=non_serialized_var_names)
+        component_decl = self._component_decl(component, ns)
+        return ComponentDump(all_vars=component_decl, serialized_vars=serialized_var_names, payload=pickled, non_serialized_vars=non_serialized_var_names)
 
-    def _dump_component(self, component: Set[str], all_variables: Dict[str, object]) -> Dump:
-        if len(component) == 1 and self._is_primitive(all_variables.get(list(component)[0])):
+    def _dump_component(self, component: Set[str], ns: Dict[str, object]) -> Dump:
+        if len(component) == 1 and self._is_primitive(ns.get(list(component)[0])):
             name = list(component)[0]
-            value = all_variables.get(name)
-            return self._dump_component_primitive(name, value)
+            value = ns.get(name)
+            return self._dump_primitive_component(name, value)
         else:
-            return self._dump_component_pickle(component, all_variables)
+            return self._dump_pickle_component(component, ns)
 
-    def dump(self, variables: Dict[str, object], dirty: Iterable[str]) -> Tuple[Iterable[ComponentStruct], Iterable[Dump]]:
-        affected_var_names, components = self._compute_affected(variables, dirty)
+    def dump(self, ns: Dict[str, object], dirty: Iterable[str]) -> Tuple[Iterable[ComponentStruct], Iterable[Dump]]:
+        affected_var_names, components = self._compute_affected(ns, dirty)
 
         dumps = []
         for component in components:
             if len(component & affected_var_names) > 0:
-                dumps.append(self._dump_component(component, variables))
+                dumps.append(self._dump_component(component, ns))
 
         components_structs = list(map(lambda c: ComponentStruct(c), components))
         return components_structs, dumps
