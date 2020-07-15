@@ -6,10 +6,8 @@ from ipystate.serialization import Serializer, Deserializer, ComponentStruct, Pr
 from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
 
 class Namespace(dict):
-    def __init__(self, init: Dict[str, object], serialization: Serializer, deserialization: Deserializer):
+    def __init__(self, init: Dict[str, object]):
         super().__init__(init)
-        self._serialization = serialization
-        self._deserialization = deserialization
         self._dirty = set()
         self._deleted = set()
 
@@ -37,21 +35,21 @@ class Namespace(dict):
             self._dirty.remove(path)
 
     # noinspection PyUnresolvedReferences
-    def commit(self) -> Tuple[Iterable[ComponentStruct],Iterable[AtomicChange]]:
-        components, dumps = self._serialization.dump(super(), self._dirty)
+    def commit(self, serializer: Serializer, deserializer: Deserializer) -> Tuple[Iterable[ComponentStruct],Iterable[AtomicChange]]:
+        components, dumps = serializer.dump(super(), self._dirty)
         changes = []
         for dump in dumps:
             change = None
             change_id = str(uuid.uuid1())
             if isinstance(dump, PrimitiveDump):
-                change = PrimitiveAtomicChange(change_id, dump.name(), dump.payload(), self._deserialization)
+                change = PrimitiveAtomicChange(change_id, dump.name(), dump.payload(), deserializer)
             elif isinstance(dump, ComponentDump):
-                change = ComponentAtomicChange(change_id, dump.var_names(), dump.payload(), self._deserialization)
+                change = ComponentAtomicChange(change_id, dump.var_names(), dump.payload(), deserializer)
             if change is not None:
                 changes.append(change)
 
         for var_name in self._deleted:
-            changes.append(RemoveAtomicChange(str(uuid.uuid1()), var_name, self._deserialization))
+            changes.append(RemoveAtomicChange(str(uuid.uuid1()), var_name, deserializer))
 
         self._deleted.clear()
         self._dirty.clear()
