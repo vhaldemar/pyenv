@@ -1,8 +1,9 @@
 from abc import abstractmethod
 
+from .decl import VarDecl
 from .serialization import Deserializer
 from .utils import StreamingUtils
-from typing import BinaryIO, Set
+from typing import BinaryIO, Set, Iterable
 
 class AtomicChange:
     def __init__(self, change_id: str, deserialization: Deserializer):
@@ -57,12 +58,13 @@ class PayloadAtomicChange(AtomicChange):
 
 
 class PrimitiveAtomicChange(PayloadAtomicChange):
-    def __init__(self, change_id: str, name: str, payload: BinaryIO, deserialization: Deserializer):
+    def __init__(self, change_id: str, var: VarDecl, payload: BinaryIO, deserialization: Deserializer):
         super().__init__(change_id, payload, deserialization)
-        self._name = name
+        self._var = var
+        self._name = var.name()
 
-    def name(self) -> str:
-        return self._name
+    def var(self) -> VarDecl:
+        return self._var
 
     def _do_apply(self, ns: 'Namespace') -> None:
         loaded = self._deserialization.load(self._payload)
@@ -73,18 +75,41 @@ class PrimitiveAtomicChange(PayloadAtomicChange):
 
 
 class ComponentAtomicChange(PayloadAtomicChange):
-    def __init__(self, change_id: str, var_names: Set[str], payload: BinaryIO, deserialization: Deserializer):
+    def __init__(self, change_id: str, all_vars: Set[VarDecl], serialized_vars: Iterable[str], payload: BinaryIO, non_serialized_vars: Set[str],
+                 deserialization: Deserializer):
         super().__init__(change_id, payload, deserialization)
-        self._component_names = set(var_names)
+        self._all_vars = set(all_vars)
+        self._serialized_vars = list(serialized_vars)
+        self._non_serialized_vars = set(non_serialized_vars)
 
-    def component_names(self) -> Set[str]:
-        return set(self._component_names)
+    def all_vars(self) -> Set[VarDecl]:
+        return set(self._all_vars)
+
+    def serialized_vars(self) -> Iterable[str]:
+        return set(self._serialized_vars)
+
+    def non_serialized_vars(self) -> Set[str]:
+        return set(self._non_serialized_vars)
 
     def _do_apply(self, ns: 'Namespace') -> None:
         loaded = self._deserialization.load(self._payload)
         variables = loaded.variables()
-        for name in self._component_names:
+        for var in self._component_names:
+            name = var.name()
             value = variables.get(name)
             if value is not None:
                 ns[name] = value
                 ns.unmark_dirty(name)
+
+
+class ComponentStructure(PayloadAtomicChange):
+    '''
+    Unchanged component structure info
+    payload is None
+    '''
+    def __init__(self, all_vars: Set[VarDecl]):
+        super().__init__(payload=None)
+        self._all_vars = set(all_vars)
+
+    def all_vars(self) -> Set[VarDecl]:
+        return set(self._all_vars)

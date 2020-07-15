@@ -2,8 +2,8 @@ import uuid
 
 from typing import Iterable, Dict, Tuple
 
-from ipystate.serialization import Serializer, Deserializer, ComponentStruct, PrimitiveDump, ComponentDump
-from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
+from ipystate.serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump, ComponentStructDump
+from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, ComponentStructure, RemoveAtomicChange
 
 class Namespace(dict):
     def __init__(self, init: Dict[str, object]):
@@ -35,24 +35,25 @@ class Namespace(dict):
             self._dirty.remove(path)
 
     # noinspection PyUnresolvedReferences
-    def commit(self, serializer: Serializer, deserializer: Deserializer) -> Tuple[Iterable[ComponentStruct],Iterable[AtomicChange]]:
-        components, dumps = serializer.dump(super(), self._dirty)
-        changes = []
+    def commit(self, serializer: Serializer, deserializer: Deserializer) -> Iterable[AtomicChange]:
+        dumps = serializer.dump(super(), self._dirty)
+
         for dump in dumps:
             change = None
             change_id = str(uuid.uuid1())
             if isinstance(dump, PrimitiveDump):
-                change = PrimitiveAtomicChange(change_id, dump.name(), dump.payload(), deserializer)
+                change = PrimitiveAtomicChange(change_id, dump.var(), dump.payload(), deserializer)
             elif isinstance(dump, ComponentDump):
-                change = ComponentAtomicChange(change_id, dump.var_names(), dump.payload(), deserializer)
+                change = ComponentAtomicChange(change_id, dump.all_vars(),
+                                               dump.serialized_vars(), dump.payload(), dump.non_serialized_vars(),
+                                               deserializer)
+            elif isinstance(dump, ComponentStructDump):
+                change = ComponentStructure(change_id, dump.all_vars())
             if change is not None:
-                changes.append(change)
+                yield change
 
         for var_name in self._deleted:
-            changes.append(RemoveAtomicChange(str(uuid.uuid1()), var_name, deserializer))
+            yield RemoveAtomicChange(str(uuid.uuid1()), var_name, deserializer)
 
         self._deleted.clear()
         self._dirty.clear()
-
-        return components, changes
-

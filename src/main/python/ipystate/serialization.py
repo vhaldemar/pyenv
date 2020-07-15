@@ -6,16 +6,11 @@ from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO, Union
 # from pickle import Pickler, Unpickler
 from cloudpickle import CloudPickler
 
+from .decl import VarDecl
+
 from .impl.components_fuser import ComponentsFuser
 from .impl.walker import Walker
 from .impl.memo import ChunkedFile, TransactionalDict
-
-class ComponentStruct:
-    def __init__(self, var_names: Set[str]):
-        self._var_names = var_names
-
-    def var_names(self) -> Set[str]:
-        return self._var_names
 
 class Dump:
     def __init__(self, payload: BinaryIO):
@@ -23,17 +18,6 @@ class Dump:
 
     def payload(self) -> BinaryIO:
         return self._payload
-
-class VarDecl:
-    def __init__(self, name: str, type: str):
-        self._name = name
-        self._type = type
-
-    def name(self) -> str:
-        return self._name
-
-    def type(self) -> str:
-        return self._type
 
 class PrimitiveDump(Dump):
     def __init__(self, var: VarDecl, payload: BinaryIO):
@@ -44,6 +28,9 @@ class PrimitiveDump(Dump):
         return self._var
 
 class ComponentDump(Dump):
+    '''
+    Changed component full dump
+    '''
     def __init__(self, all_vars: Set[VarDecl], serialized_vars: Iterable[str], payload: BinaryIO, non_serialized_vars: Set[str]):
         super().__init__(payload)
         self._all_vars = set(all_vars)
@@ -59,6 +46,19 @@ class ComponentDump(Dump):
 
     def non_serialized_vars(self) -> Set[str]:
         return set(self._non_serialized_vars)
+
+
+class ComponentStructDump(Dump):
+    '''
+    Unchanged component structure dump
+    payload is None
+    '''
+    def __init__(self, all_vars: Set[VarDecl]):
+        super().__init__(payload=None)
+        self._all_vars = set(all_vars)
+
+    def all_vars(self) -> Set[VarDecl]:
+        return set(self._all_vars)
 
 class LoadedComponent:
     def __init__(self, variables: Dict[str, object], non_deserialized_vars: Set[str]):
@@ -188,16 +188,18 @@ class Serializer:
         else:
             return self._dump_pickle_component(component, ns)
 
-    def dump(self, ns: Dict[str, object], dirty: Iterable[str]) -> Tuple[Iterable[ComponentStruct], Iterable[Dump]]:
+    def _dump_component_struct(self, component: Set[str], ns: Dict[str, object]) -> Dump:
+        component_decl = self._component_decl(component, ns)
+        return ComponentStructDump(all_vars=component_decl)
+
+    def dump(self, ns: Dict[str, object], dirty: Iterable[str]) -> Iterable[Dump]:
         affected_var_names, components = self._compute_affected(ns, dirty)
 
-        dumps = []
         for component in components:
             if len(component & affected_var_names) > 0:
-                dumps.append(self._dump_component(component, ns))
-
-        components_structs = list(map(lambda c: ComponentStruct(c), components))
-        return components_structs, dumps
+                yield self._dump_component(component, ns)
+            else:
+                yield self._dump_component_struct(component, ns)
 
 
 class Deserializer:
