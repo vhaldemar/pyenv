@@ -6,10 +6,12 @@ from ipystate.serialization import Serializer, Deserializer, PrimitiveDump, Comp
 from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, ComponentStructure, RemoveAtomicChange
 
 class Namespace(dict):
-    def __init__(self, init: Dict[str, object]):
+    def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer):
         super().__init__(init)
         self._dirty = set()
         self._deleted = set()
+        self._serializer = serializer
+        self._deserializer = deserializer
 
     def __setitem__(self, name: str, value: object) -> None:
         super().__setitem__(name, value)
@@ -34,26 +36,28 @@ class Namespace(dict):
         if path in self._dirty:
             self._dirty.remove(path)
 
+    # TODO implement exclusions
+
     # noinspection PyUnresolvedReferences
-    def commit(self, serializer: Serializer, deserializer: Deserializer) -> Iterable[AtomicChange]:
-        dumps = serializer.dump(super(), self._dirty)
+    def commit(self) -> Iterable[AtomicChange]:
+        dumps = self._serializer.dump(super(), self._dirty)
 
         for dump in dumps:
             change = None
             change_id = str(uuid.uuid1())
             if isinstance(dump, PrimitiveDump):
-                change = PrimitiveAtomicChange(change_id, dump.var(), dump.payload(), deserializer)
+                change = PrimitiveAtomicChange(change_id, dump.var(), dump.payload(), None)
             elif isinstance(dump, ComponentDump):
                 change = ComponentAtomicChange(change_id, dump.all_vars(),
                                                dump.serialized_vars(), dump.payload(), dump.non_serialized_vars(),
-                                               deserializer)
+                                               None)
             elif isinstance(dump, ComponentStructDump):
                 change = ComponentStructure(change_id, dump.all_vars())
             if change is not None:
                 yield change
 
         for var_name in self._deleted:
-            yield RemoveAtomicChange(str(uuid.uuid1()), var_name, deserializer)
+            yield RemoveAtomicChange(str(uuid.uuid1()), var_name, None)
 
         self._deleted.clear()
         self._dirty.clear()

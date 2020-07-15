@@ -97,6 +97,7 @@ class Serializer:
         pass
 
     def _compute_affected(self, variables: Dict[str, object], dirty: Iterable[str]) -> Tuple[Set[str],Iterable[Set[str]]]:
+        # TODO implement exclusions
         touched_names = set(filter(self._is_persistable_var, dirty))
 
         all_components = self._walker.walk(

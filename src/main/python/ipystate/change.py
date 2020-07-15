@@ -107,8 +107,8 @@ class ComponentStructure(PayloadAtomicChange):
     Unchanged component structure info
     payload is None
     '''
-    def __init__(self, all_vars: Set[VarDecl]):
-        super().__init__(payload=None)
+    def __init__(self, change_id: str, all_vars: Set[VarDecl]):
+        super().__init__(change_id, payload=None, deserialization=None)
         self._all_vars = set(all_vars)
 
     def all_vars(self) -> Set[VarDecl]:
