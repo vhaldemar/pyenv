@@ -43,6 +43,9 @@ class PayloadAtomicChange(AtomicChange):
         self._check_and_set_processed()
         self._do_apply(ns)
 
+    def payload(self):
+        return self._payload
+
     def transfer(self, output: BinaryIO) -> None:
         self._check_and_set_processed()
         StreamingUtils.transfer(self._payload, output)
