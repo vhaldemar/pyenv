@@ -13,29 +13,27 @@ from .impl.walker import Walker
 from .impl.memo import ChunkedFile, TransactionalDict
 
 class Dump:
-    def __init__(self, payload: BinaryIO):
-        self._payload = payload
-
-    def payload(self) -> BinaryIO:
-        return self._payload
+    pass
 
 class PrimitiveDump(Dump):
     def __init__(self, var: VarDecl, payload: BinaryIO):
-        super().__init__(payload)
         self._var = var
+        self._payload = payload
 
     def var(self) -> VarDecl:
         return self._var
+
+    def payload(self) -> BinaryIO:
+        return self._payload
 
 class ComponentDump(Dump):
     '''
     Changed component full dump
     '''
-    def __init__(self, all_vars: Set[VarDecl], serialized_vars: Iterable[str], payload: BinaryIO, non_serialized_vars: Set[str]):
-        super().__init__(payload)
+    def __init__(self, all_vars: Set[VarDecl], serialized_vars: Iterable[str], var_payloads: Iterable[BinaryIO], non_serialized_vars: Set[str]):
         self._all_vars = set(all_vars)
         self._serialized_vars = list(serialized_vars)
-        # TODO should we compute it from all_vars - serialized_vars?
+        self._var_payloads = var_payloads
         self._non_serialized_vars = set(non_serialized_vars)
 
     def all_vars(self) -> Set[VarDecl]:
@@ -44,6 +42,9 @@ class ComponentDump(Dump):
     def serialized_vars(self) -> Iterable[str]:
         return set(self._serialized_vars)
 
+    def var_payloads(self) -> Iterable[BinaryIO]:
+        return self._var_payloads
+
     def non_serialized_vars(self) -> Set[str]:
         return set(self._non_serialized_vars)
 
@@ -51,10 +52,8 @@ class ComponentDump(Dump):
 class ComponentStructDump(Dump):
     '''
     Unchanged component structure dump
-    payload is None
     '''
     def __init__(self, all_vars: Set[VarDecl]):
-        super().__init__(payload=None)
         self._all_vars = set(all_vars)
 
     def all_vars(self) -> Set[VarDecl]:
@@ -157,7 +156,7 @@ class Serializer:
         pickler = self._new_pickler(cf)
         pickler.memo = TransactionalDict(pickler.memo)
 
-        pickled = bytearray()
+        payloads = []
 
         comp_sorted_vars = self._sort_component_vars(component, ns)
         for var_name in comp_sorted_vars:
@@ -168,8 +167,10 @@ class Serializer:
                 pickler.dump(var_value)
                 pickler.memo.commit()
                 chunk = cf.current_chunk()
+                pickled = bytearray()
                 pickled.extend(BytesUtil._int_to_bytes(len(chunk)))
                 pickled.extend(chunk)
+                payloads.append(pickled)
                 serialized_var_names.append(var_name)
             except Exception as e:
                 pickler.memo.rollback()
@@ -179,7 +180,7 @@ class Serializer:
                 cf.reset()
 
         component_decl = self._component_decl(component, ns)
-        return ComponentDump(all_vars=component_decl, serialized_vars=serialized_var_names, payload=pickled, non_serialized_vars=non_serialized_var_names)
+        return ComponentDump(all_vars=component_decl, serialized_vars=serialized_var_names, var_payloads=payloads, non_serialized_vars=non_serialized_var_names)
 
     def _dump_component(self, component: Set[str], ns: Dict[str, object]) -> Dump:
         if len(component) == 1 and self._is_primitive(ns.get(list(component)[0])):

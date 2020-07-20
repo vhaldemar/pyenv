@@ -49,7 +49,7 @@ class Namespace(dict):
                 change = PrimitiveAtomicChange(change_id, dump.var(), dump.payload(), None)
             elif isinstance(dump, ComponentDump):
                 change = ComponentAtomicChange(change_id, dump.all_vars(),
-                                               dump.serialized_vars(), dump.payload(), dump.non_serialized_vars(),
+                                               dump.serialized_vars(), dump.var_payloads(), dump.non_serialized_vars(),
                                                None)
             elif isinstance(dump, ComponentStructDump):
                 change = ComponentStructure(change_id, dump.all_vars())
