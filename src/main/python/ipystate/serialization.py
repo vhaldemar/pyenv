@@ -167,10 +167,7 @@ class Serializer:
                 pickler.dump(var_value)
                 pickler.memo.commit()
                 chunk = cf.current_chunk()
-                pickled = bytearray()
-                pickled.extend(BytesUtil._int_to_bytes(len(chunk)))
-                pickled.extend(chunk)
-                payloads.append(pickled)
+                payloads.append(chunk)
                 serialized_var_names.append(var_name)
             except Exception as e:
                 pickler.memo.rollback()
