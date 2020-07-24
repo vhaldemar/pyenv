@@ -30,20 +30,16 @@ class ComponentDump(Dump):
     '''
     Changed component full dump
     '''
-    def __init__(self, all_vars: Set[VarDecl], serialized_vars: Iterable[str], var_payloads: Iterable[BinaryIO], non_serialized_vars: Set[str]):
+    def __init__(self, all_vars: Set[VarDecl], serialized_vars: Iterable[Tuple[str, BinaryIO]], non_serialized_vars: Set[str]):
         self._all_vars = set(all_vars)
         self._serialized_vars = list(serialized_vars)
-        self._var_payloads = var_payloads
         self._non_serialized_vars = set(non_serialized_vars)
 
     def all_vars(self) -> Set[VarDecl]:
         return set(self._all_vars)
 
-    def serialized_vars(self) -> Iterable[str]:
-        return set(self._serialized_vars)
-
-    def var_payloads(self) -> Iterable[BinaryIO]:
-        return self._var_payloads
+    def serialized_vars(self) -> Iterable[Tuple[str, BinaryIO]]:
+        return list(self._serialized_vars)
 
     def non_serialized_vars(self) -> Set[str]:
         return set(self._non_serialized_vars)
@@ -149,14 +145,12 @@ class Serializer:
         return all_vars
 
     def _dump_pickle_component(self, component: Set[str], ns: Dict[str, object]) -> Dump:
-        serialized_var_names = list()
+        serialized_vars = list()
         non_serialized_var_names = set()
 
         cf = ChunkedFile()
         pickler = self._new_pickler(cf)
         pickler.memo = TransactionalDict(pickler.memo)
-
-        payloads = []
 
         comp_sorted_vars = self._sort_component_vars(component, ns)
         for var_name in comp_sorted_vars:
@@ -167,8 +161,7 @@ class Serializer:
                 pickler.dump(var_value)
                 pickler.memo.commit()
                 chunk = cf.current_chunk()
-                payloads.append(chunk)
-                serialized_var_names.append(var_name)
+                serialized_vars.append((var_name, chunk))
             except Exception as e:
                 pickler.memo.rollback()
                 non_serialized_var_names.add(var_name)
@@ -177,7 +170,7 @@ class Serializer:
                 cf.reset()
 
         component_decl = self._component_decl(component, ns)
-        return ComponentDump(all_vars=component_decl, serialized_vars=serialized_var_names, var_payloads=payloads, non_serialized_vars=non_serialized_var_names)
+        return ComponentDump(all_vars=component_decl, serialized_vars=serialized_vars, non_serialized_vars=non_serialized_var_names)
 
     def _dump_component(self, component: Set[str], ns: Dict[str, object]) -> Dump:
         if len(component) == 1 and self._is_primitive(ns.get(list(component)[0])):

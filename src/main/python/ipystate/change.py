@@ -2,8 +2,7 @@ from abc import abstractmethod
 
 from .decl import VarDecl
 from .serialization import Deserializer
-from .utils import StreamingUtils
-from typing import BinaryIO, Set, Iterable
+from typing import BinaryIO, Iterable, Set, Tuple
 
 class AtomicChange:
     def __init__(self, change_id: str, deserialization: Deserializer):
@@ -52,22 +51,18 @@ class PrimitiveAtomicChange(AtomicChange):
 
 
 class ComponentAtomicChange(AtomicChange):
-    def __init__(self, change_id: str, all_vars: Set[VarDecl], serialized_vars: Iterable[str], var_payloads: Iterable[BinaryIO], non_serialized_vars: Set[str],
+    def __init__(self, change_id: str, all_vars: Set[VarDecl], serialized_vars: Iterable[Tuple[str, BinaryIO]], non_serialized_vars: Set[str],
                  deserialization: Deserializer):
         super().__init__(change_id, deserialization)
         self._all_vars = set(all_vars)
         self._serialized_vars = list(serialized_vars)
-        self._var_payloads = var_payloads
         self._non_serialized_vars = set(non_serialized_vars)
 
     def all_vars(self) -> Set[VarDecl]:
         return set(self._all_vars)
 
-    def serialized_vars(self) -> Iterable[str]:
-        return set(self._serialized_vars)
-
-    def var_payloads(self) -> Iterable[BinaryIO]:
-        return self._var_payloads
+    def serialized_vars(self) -> Iterable[Tuple[str, BinaryIO]]:
+        return list(self._serialized_vars)
 
     def non_serialized_vars(self) -> Set[str]:
         return set(self._non_serialized_vars)
