@@ -45,15 +45,15 @@ class ComponentDump(Dump):
         return set(self._non_serialized_vars)
 
 
-class ComponentStructDump(Dump):
-    '''
-    Unchanged component structure dump
-    '''
-    def __init__(self, all_vars: Set[VarDecl]):
-        self._all_vars = set(all_vars)
-
-    def all_vars(self) -> Set[VarDecl]:
-        return set(self._all_vars)
+# class ComponentStructDump(Dump):
+#     '''
+#     Unchanged component structure dump
+#     '''
+#     def __init__(self, all_vars: Set[VarDecl]):
+#         self._all_vars = set(all_vars)
+#
+#     def all_vars(self) -> Set[VarDecl]:
+#         return set(self._all_vars)
 
 class LoadedComponent:
     def __init__(self, variables: Dict[str, object], non_deserialized_vars: Set[str]):
@@ -180,9 +180,9 @@ class Serializer:
         else:
             return self._dump_pickle_component(component, ns)
 
-    def _dump_component_struct(self, component: Set[str], ns: Dict[str, object]) -> Dump:
-        component_decl = self._component_decl(component, ns)
-        return ComponentStructDump(all_vars=component_decl)
+    # def _dump_component_struct(self, component: Set[str], ns: Dict[str, object]) -> Dump:
+    #     component_decl = self._component_decl(component, ns)
+    #     return ComponentStructDump(all_vars=component_decl)
 
     def dump(self, ns: Dict[str, object], dirty: Iterable[str]) -> Iterable[Dump]:
         affected_var_names, components = self._compute_affected(ns, dirty)
@@ -190,8 +190,8 @@ class Serializer:
         for component in components:
             if len(component & affected_var_names) > 0:
                 yield self._dump_component(component, ns)
-            else:
-                yield self._dump_component_struct(component, ns)
+            # else:
+            #     yield self._dump_component_struct(component, ns)
 
 
 class Deserializer:

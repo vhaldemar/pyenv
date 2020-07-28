@@ -2,8 +2,8 @@ import uuid
 
 from typing import Iterable, Dict, Tuple
 
-from ipystate.serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump, ComponentStructDump
-from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, ComponentStructure, RemoveAtomicChange
+from ipystate.serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump
+from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
 
 class Namespace(dict):
     def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer):
@@ -53,8 +53,8 @@ class Namespace(dict):
                                                dump.serialized_vars(),
                                                dump.non_serialized_vars(),
                                                None)
-            elif isinstance(dump, ComponentStructDump):
-                change = ComponentStructure(change_id, dump.all_vars())
+            # elif isinstance(dump, ComponentStructDump):
+            #     change = ComponentStructure(change_id, dump.all_vars())
             if change is not None:
                 yield change
 
