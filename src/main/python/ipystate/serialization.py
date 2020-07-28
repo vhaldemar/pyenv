@@ -3,7 +3,6 @@ import json
 from abc import abstractmethod
 from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO, Union
 
-# from pickle import Pickler, Unpickler
 from cloudpickle import CloudPickler
 
 from .decl import VarDecl
@@ -91,16 +90,17 @@ class Serializer:
     def _is_primitive(self, value: Any) -> bool:
         pass
 
-    def _compute_affected(self, variables: Dict[str, object], dirty: Iterable[str]) -> Tuple[Set[str],Iterable[Set[str]]]:
+    def _compute_affected(self, variables: Dict[str, object], dirty: Iterable[str], comps0: Iterable[Set[str]], comps1: Iterable[Set[str]]) -> Tuple[Set[str],Iterable[Set[str]]]:
         # TODO implement exclusions
         touched_names = set(filter(self._is_persistable_var, dirty))
 
-        all_components = self._walker.walk(
-            {name: variables.get(name) for name in variables.keys() if self._is_persistable_var(name)}
-        )
+        all_components = []
+        all_components.extend(comps0)
+        all_components.extend(comps1)
 
         affected_var_names = ComponentsFuser.fuse(touched_names, all_components)
-        return affected_var_names, all_components
+
+        return affected_var_names, comps1
 
     @abstractmethod
     def _primitive_var_repr(self, value: Any) -> Tuple[BinaryIO, str]:
@@ -184,8 +184,8 @@ class Serializer:
     #     component_decl = self._component_decl(component, ns)
     #     return ComponentStructDump(all_vars=component_decl)
 
-    def dump(self, ns: Dict[str, object], dirty: Iterable[str]) -> Iterable[Dump]:
-        affected_var_names, components = self._compute_affected(ns, dirty)
+    def dump(self, ns: Dict[str, object], dirty: Iterable[str], comps0: Iterable[Set[str]], comps1: Iterable[Set[str]]) -> Iterable[Dump]:
+        affected_var_names, components = self._compute_affected(ns, dirty, comps0, comps1)
 
         for component in components:
             if len(component & affected_var_names) > 0:
