@@ -30,9 +30,17 @@ class Namespace(dict):
         else:
             self._comps0 = self._compute_comps()
 
+    def _skip_variable(self, var_name: str) -> bool:
+        """
+        Subclasses may override variable skipping
+        :param var_name:
+        :return:
+        """
+        return False
+
     def _compute_comps(self) -> Iterable[Set[str]]:
         return self._walker.walk(
-            {name: self.get(name) for name in self.keys()}
+            {name: self.get(name) for name in self.keys() if not self._skip_variable(name)}
         )
 
     def __setitem__(self, name: str, value: object) -> None:
