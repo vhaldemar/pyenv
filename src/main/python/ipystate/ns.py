@@ -30,6 +30,10 @@ class Namespace(dict):
         else:
             self._comps0 = self._compute_comps()
 
+    def reset(self):
+        # clear dirty/deleted and compute components:
+        self._reset(new_comps=None)
+
     def _skip_variable(self, var_name: str) -> bool:
         """
         Subclasses may override variable skipping
