@@ -60,15 +60,18 @@ class Namespace(dict):
 
     def __delitem__(self, name: str) -> None:
         if super().__contains__(name):
+            # we assume deleted variable to be dirty as well,
+            # so we can re-serialize components affected by del
             self._deleted.add(name)
+            self._dirty.add(name)
         super().__delitem__(name)
 
-    def mark_dirty(self, path: str) -> None:
-        self._dirty.add(path)
+    def mark_dirty(self, name: str) -> None:
+        self._dirty.add(name)
 
-    def unmark_dirty(self, path: str) -> None:
+    def unmark_dirty(self, name: str) -> None:
         if path in self._dirty:
-            self._dirty.remove(path)
+            self._dirty.remove(name)
 
     # TODO implement exclusions
 
