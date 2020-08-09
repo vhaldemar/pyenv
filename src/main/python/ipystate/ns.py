@@ -10,19 +10,28 @@ from ipystate.impl.walker import Walker
 class Namespace(dict):
     def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer):
         super().__init__(init)
-        self._dirty = set()
+        self._touched = set()
         self._deleted = set()
         self._comps0 = []
         self._serializer = serializer
         self._deserializer = deserializer
         self._walker = Walker()
         self._reset(new_comps=None)
-
+    
+    def _on_reset(self):
+        """
+        Intended for override
+        :return:
+        """
+        pass
+    
     def _reset(self, new_comps: Iterable[Set[str]]) -> None:
         '''
         Reset changes
         '''
-        self._dirty.clear()
+        self._on_reset()
+
+        self._touched.clear()
         self._deleted.clear()
 
         if new_comps is not None:
@@ -42,6 +51,14 @@ class Namespace(dict):
         """
         return False
 
+    def _probably_dirty(self, var_name: str) -> bool:
+        """
+        Subclasses may override variable dirty check
+        :param var_name:
+        :return:
+        """
+        return True
+
     def _compute_comps(self) -> Iterable[Set[str]]:
         return self._walker.walk(
             {name: self.get(name) for name in self.keys() if not self._skip_variable(name)}
@@ -49,13 +66,13 @@ class Namespace(dict):
 
     def __setitem__(self, name: str, value: object) -> None:
         super().__setitem__(name, value)
-        self.mark_dirty(name)
+        self.mark_touched(name)
         if name in self._deleted:
             self._deleted.remove(name)
 
     def __getitem__(self, name: str) -> object:
         if super().__contains__(name):
-            self.mark_dirty(name)
+            self.mark_touched(name)
         return super().__getitem__(name)
 
     def __delitem__(self, name: str) -> None:
@@ -63,23 +80,25 @@ class Namespace(dict):
             # we assume deleted variable to be dirty as well,
             # so we can re-serialize components affected by del
             self._deleted.add(name)
-            self._dirty.add(name)
+            self._touched.add(name)
         super().__delitem__(name)
 
-    def mark_dirty(self, name: str) -> None:
-        self._dirty.add(name)
+    def is_touched(self, name: str) -> bool:
+        return name in self._touched
 
-    def unmark_dirty(self, name: str) -> None:
-        if path in self._dirty:
-            self._dirty.remove(name)
+    def mark_touched(self, name: str) -> None:
+        self._touched.add(name)
 
-    # TODO implement exclusions
+    def unmark_touched(self, name: str) -> None:
+        if name in self._touched:
+            self._touched.remove(name)
 
     # noinspection PyUnresolvedReferences
     def commit(self) -> Iterable[AtomicChange]:
+        touched = set(filter(lambda v: not self._skip_variable(v), set(self._touched)))
+        dirty = set(filter(self._probably_dirty, touched))
         comps1 = self._compute_comps()
-
-        dumps = self._serializer.dump(super(), self._dirty, self._comps0, comps1)
+        dumps = self._serializer.dump(super(), dirty, self._comps0, comps1)
 
         for dump in dumps:
             change = None

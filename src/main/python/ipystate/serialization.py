@@ -83,22 +83,17 @@ class Serializer:
         self._walker = Walker()
 
     @abstractmethod
-    def _is_persistable_var(self, name: str) -> bool:
-        pass
-
-    @abstractmethod
     def _is_primitive(self, value: Any) -> bool:
         pass
 
     def _compute_affected(self, variables: Dict[str, object], dirty: Iterable[str], comps0: Iterable[Set[str]], comps1: Iterable[Set[str]]) -> Tuple[Set[str],Iterable[Set[str]]]:
-        # TODO implement exclusions
-        touched_names = set(filter(self._is_persistable_var, dirty))
+        dirty_names = set(dirty)
 
         all_components = []
         all_components.extend(comps0)
         all_components.extend(comps1)
 
-        affected_var_names = ComponentsFuser.fuse(touched_names, all_components)
+        affected_var_names = ComponentsFuser.fuse(dirty_names, all_components)
 
         return affected_var_names, comps1
 
