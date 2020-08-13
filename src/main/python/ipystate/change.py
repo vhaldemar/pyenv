@@ -89,3 +89,12 @@ class ComponentStructure(AtomicChange):
 
     def all_vars(self) -> Set[VarDecl]:
         return set(self._all_vars)
+
+
+class ChangeUtils:
+    def non_serialized(changes: Iterable[AtomicChange]) -> Iterable[str]:
+        comps = list(filter(lambda c: isinstance(c, ComponentAtomicChange), changes))
+        non_serialized = []
+        for c in comps:
+            non_serialized.extend(c.non_serialized_vars())
+        return sorted(non_serialized)

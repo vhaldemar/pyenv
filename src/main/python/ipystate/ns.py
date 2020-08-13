@@ -83,6 +83,9 @@ class Namespace(dict):
             self._touched.add(name)
         super().__delitem__(name)
 
+    def touched(self) -> Set[str]:
+        return set(self._touched)
+
     def is_touched(self, name: str) -> bool:
         return name in self._touched
 
