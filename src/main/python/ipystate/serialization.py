@@ -11,8 +11,10 @@ from .impl.components_fuser import ComponentsFuser
 from .impl.walker import Walker
 from .impl.memo import ChunkedFile, TransactionalDict
 
+
 class Dump:
     pass
+
 
 class PrimitiveDump(Dump):
     def __init__(self, var: VarDecl, payload: BinaryIO):
@@ -25,11 +27,14 @@ class PrimitiveDump(Dump):
     def payload(self) -> BinaryIO:
         return self._payload
 
+
 class ComponentDump(Dump):
     '''
     Changed component full dump
     '''
-    def __init__(self, all_vars: Set[VarDecl], serialized_vars: Iterable[Tuple[str, BinaryIO]], non_serialized_vars: Set[str]):
+
+    def __init__(self, all_vars: Set[VarDecl], serialized_vars: Iterable[Tuple[str, BinaryIO]],
+                 non_serialized_vars: Set[str]):
         self._all_vars = set(all_vars)
         self._serialized_vars = list(serialized_vars)
         self._non_serialized_vars = set(non_serialized_vars)
@@ -65,18 +70,20 @@ class LoadedComponent:
     def non_deserialized_vars(self) -> Set[str]:
         return set(self._non_deserialized_vars)
 
+
 class BytesUtil:
-    def _string_to_bytes(s: str) -> bytes:
+    def string_to_bytes(s: str) -> bytes:
         return s.encode('utf-8')
 
-    def _bytes_to_string(b: bytes) -> str:
+    def bytes_to_string(b: bytes) -> str:
         return b.decode('utf-8')
 
-    def _int_to_bytes(x: int) -> bytes:
+    def int_to_bytes(x: int) -> bytes:
         return x.to_bytes(8, 'big')
 
-    def _bytes_to_int(b: bytes) -> int:
+    def bytes_to_int(b: bytes) -> int:
         return int.from_bytes(b, "big")
+
 
 class Serializer:
     def __init__(self):
@@ -86,7 +93,8 @@ class Serializer:
     def _is_primitive(self, value: Any) -> bool:
         pass
 
-    def _compute_affected(self, variables: Dict[str, object], dirty: Iterable[str], comps0: Iterable[Set[str]], comps1: Iterable[Set[str]]) -> Tuple[Set[str],Iterable[Set[str]]]:
+    def _compute_affected(self, variables: Dict[str, object], dirty: Iterable[str], comps0: Iterable[Set[str]],
+                          comps1: Iterable[Set[str]]) -> Tuple[Set[str], Iterable[Set[str]]]:
         dirty_names = set(dirty)
 
         all_components = []
@@ -165,7 +173,8 @@ class Serializer:
                 cf.reset()
 
         component_decl = self._component_decl(component, ns)
-        return ComponentDump(all_vars=component_decl, serialized_vars=serialized_vars, non_serialized_vars=non_serialized_var_names)
+        return ComponentDump(all_vars=component_decl, serialized_vars=serialized_vars,
+                             non_serialized_vars=non_serialized_var_names)
 
     def _dump_component(self, component: Set[str], ns: Dict[str, object]) -> Dump:
         if len(component) == 1 and self._is_primitive(ns.get(list(component)[0])):
@@ -179,7 +188,8 @@ class Serializer:
     #     component_decl = self._component_decl(component, ns)
     #     return ComponentStructDump(all_vars=component_decl)
 
-    def dump(self, ns: Dict[str, object], dirty: Iterable[str], comps0: Iterable[Set[str]], comps1: Iterable[Set[str]]) -> Iterable[Dump]:
+    def dump(self, ns: Dict[str, object], dirty: Iterable[str], comps0: Iterable[Set[str]],
+             comps1: Iterable[Set[str]]) -> Iterable[Dump]:
         affected_var_names, components = self._compute_affected(ns, dirty, comps0, comps1)
 
         for component in components:
