@@ -1,5 +1,3 @@
-import json
-
 from abc import abstractmethod
 from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO, Union
 
@@ -29,10 +27,9 @@ class PrimitiveDump(Dump):
 
 
 class ComponentDump(Dump):
-    '''
+    """
     Changed component full dump
-    '''
-
+    """
     def __init__(self, all_vars: Set[VarDecl], serialized_vars: Iterable[Tuple[str, BinaryIO]],
                  non_serialized_vars: Set[str]):
         self._all_vars = set(all_vars)
@@ -72,15 +69,19 @@ class LoadedComponent:
 
 
 class BytesUtil:
+    @staticmethod
     def string_to_bytes(s: str) -> bytes:
         return s.encode('utf-8')
 
+    @staticmethod
     def bytes_to_string(b: bytes) -> str:
         return b.decode('utf-8')
 
+    @staticmethod
     def int_to_bytes(x: int) -> bytes:
         return x.to_bytes(8, 'big')
 
+    @staticmethod
     def bytes_to_int(b: bytes) -> int:
         return int.from_bytes(b, "big")
 
@@ -93,7 +94,7 @@ class Serializer:
     def _is_primitive(self, value: Any) -> bool:
         pass
 
-    def _compute_affected(self, variables: Dict[str, object], dirty: Iterable[str], comps0: Iterable[Set[str]],
+    def _compute_affected(self, dirty: Iterable[str], comps0: Iterable[Set[str]],
                           comps1: Iterable[Set[str]]) -> Tuple[Set[str], Iterable[Set[str]]]:
         dirty_names = set(dirty)
 
@@ -107,9 +108,9 @@ class Serializer:
 
     @abstractmethod
     def _primitive_var_repr(self, value: Any) -> Tuple[BinaryIO, str]:
-        '''
+        """
         Should return binary value representation and type string
-        '''
+        """
         pass
 
     def _new_pickler(self, file: IO[bytes]):
@@ -122,13 +123,15 @@ class Serializer:
         # TODO allow subclass to skip serializing this variable
         # TODO  ... and report to non serialized
         # TODO  ... and self._on_var_serialize_error()
-        payload, type = self._primitive_var_repr(value)
-        var = VarDecl(name=name, type=type)
+        payload, typ = self._primitive_var_repr(value)
+        var = VarDecl(name=name, type=typ)
 
         return PrimitiveDump(var=var, payload=payload)
 
     def _no_refs(self, value: Any) -> bool:
-        '''Variable has no outgoing references and should be pickled in the beginning'''
+        """"
+        Variable has no outgoing references and should be pickled in the beginning\
+        """
         return self._is_primitive(value)
 
     def _sort_component_vars(self, component: Set[str], ns: Dict[str, object]) -> Iterable[str]:
@@ -184,19 +187,13 @@ class Serializer:
         else:
             return self._dump_pickle_component(component, ns)
 
-    # def _dump_component_struct(self, component: Set[str], ns: Dict[str, object]) -> Dump:
-    #     component_decl = self._component_decl(component, ns)
-    #     return ComponentStructDump(all_vars=component_decl)
-
     def dump(self, ns: Dict[str, object], dirty: Iterable[str], comps0: Iterable[Set[str]],
              comps1: Iterable[Set[str]]) -> Iterable[Dump]:
-        affected_var_names, components = self._compute_affected(ns, dirty, comps0, comps1)
+        affected_var_names, components = self._compute_affected(dirty, comps0, comps1)
 
         for component in components:
             if len(component & affected_var_names) > 0:
                 yield self._dump_component(component, ns)
-            # else:
-            #     yield self._dump_component_struct(component, ns)
 
 
 class Deserializer:
