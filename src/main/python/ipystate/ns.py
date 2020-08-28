@@ -10,6 +10,7 @@ from ipystate.impl.walker import Walker
 class Namespace(dict):
     def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer):
         super().__init__(init)
+        self.armed = True
         self._touched = set()
         self._deleted = set()
         self._comps0 = []
@@ -17,7 +18,7 @@ class Namespace(dict):
         self._deserializer = deserializer
         self._walker = Walker()
         self._reset(new_comps=None)
-    
+
     def _on_reset(self):
         """
         Intended for override
@@ -66,17 +67,18 @@ class Namespace(dict):
 
     def __setitem__(self, name: str, value: object) -> None:
         super().__setitem__(name, value)
-        self.mark_touched(name)
-        if name in self._deleted:
-            self._deleted.remove(name)
+        if self.armed:
+            self.mark_touched(name)
+            if name in self._deleted:
+                self._deleted.remove(name)
 
     def __getitem__(self, name: str) -> object:
-        if super().__contains__(name):
+        if self.armed and super().__contains__(name):
             self.mark_touched(name)
         return super().__getitem__(name)
 
     def __delitem__(self, name: str) -> None:
-        if super().__contains__(name):
+        if self.armed and super().__contains__(name):
             # we assume deleted variable to be dirty as well,
             # so we can re-serialize components affected by del
             self._deleted.add(name)
