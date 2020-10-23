@@ -16,7 +16,7 @@ class Namespace(dict):
         self._comps0 = []
         self._serializer = serializer
         self._deserializer = deserializer
-        self._walker = Walker()
+        self._walker = Walker(dispatch_table=serializer.configurable_dispatch_table)
         self._reset(new_comps=None)
 
     def _on_reset(self):
