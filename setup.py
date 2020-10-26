@@ -7,7 +7,7 @@ setuptools.setup(
     packages=['ipystate', 'ipystate/impl'],
     install_requires=[
         'ipython==7.13.0',
-        'cloudpickle==1.2.2',
+        'cloudpickle==1.6.0',
         'numpy==1.19.1',
         'pandas==0.25.3'
     ],

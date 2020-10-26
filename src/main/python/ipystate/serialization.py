@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from collections import ChainMap
 from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO, Union
 
 from cloudpickle import CloudPickler
@@ -6,7 +7,6 @@ from cloudpickle import CloudPickler
 from .decl import VarDecl
 
 from .impl.components_fuser import ComponentsFuser
-from .impl.walker import Walker
 from .impl.memo import ChunkedFile, TransactionalDict
 
 
@@ -88,7 +88,11 @@ class BytesUtil:
 
 class Serializer:
     def __init__(self):
-        self._walker = Walker()
+        self._configurable_dispatch_table = ChainMap({}, CloudPickler.dispatch_table)
+
+    @property
+    def configurable_dispatch_table(self):
+        return self._configurable_dispatch_table
 
     @abstractmethod
     def _is_primitive(self, value: Any) -> bool:
@@ -113,8 +117,10 @@ class Serializer:
         """
         pass
 
-    def _new_pickler(self, file: IO[bytes]):
-        return CloudPickler(file)
+    def new_pickler(self, *args, **kwargs):
+        pickler = CloudPickler(*args, **kwargs)
+        pickler.dispatch_table = self.configurable_dispatch_table
+        return pickler
 
     def _on_var_serialize_error(self, name: str, value: Any, e: Exception):
         pass
@@ -155,7 +161,7 @@ class Serializer:
         non_serialized_var_names = set()
 
         cf = ChunkedFile()
-        pickler = self._new_pickler(cf)
+        pickler = self.new_pickler(cf)
         pickler.memo = TransactionalDict(pickler.memo)
 
         comp_sorted_vars = self._sort_component_vars(component, ns)
