@@ -9,7 +9,6 @@ setuptools.setup(
         'ipython==7.13.0',
         'cloudpickle==1.6.0',
         'numpy==1.19.1',
-        'pandas==0.25.3'
     ],
     python_requires='>=3.7',
     classifiers=[
