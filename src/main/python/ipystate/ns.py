@@ -5,7 +5,7 @@ from typing import Iterable, Dict, Set, Tuple
 from ipystate.serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump
 from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
 from ipystate.impl.walker import Walker
-
+from ipystate.hasher import HasherImpl, Hasher
 
 class Namespace(dict):
     def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer):
@@ -18,6 +18,7 @@ class Namespace(dict):
         self._deserializer = deserializer
         self._walker = Walker(dispatch_table=serializer.configurable_dispatch_table)
         self._reset(new_comps=None)
+        self._hasher: Hasher = HasherImpl()
 
     def _on_reset(self):
         """
@@ -52,13 +53,19 @@ class Namespace(dict):
         """
         return False
 
-    def _probably_dirty(self, var_name: str) -> bool:
+    def _probably_dirty(self, name: str) -> bool:
         """
         Subclasses may override variable dirty check
         :param var_name:
         :return:
         """
-        return True
+        if (name in self._deleted) or (name not in super()):
+            return True
+        value = super()[name]
+        changed = self._hasher.has_changed(name, value)
+        self._hasher.update_hash(name, value)
+        print(f"{name}, changed={changed}")
+        return changed
 
     def _compute_comps(self) -> Iterable[Set[str]]:
         return self._walker.walk(
