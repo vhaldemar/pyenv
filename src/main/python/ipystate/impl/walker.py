@@ -213,7 +213,12 @@ class Walker:
         if not obj:  # tuple is empty
             return self._constant
 
-        if all(self._save(element) == self._constant for element in obj):
+        all_constants = True
+        for element in obj:
+            if self._save(element) != self._constant:
+                all_constants = False
+
+        if all_constants:
             # todo save constant property in memo
             return self._constant
 
