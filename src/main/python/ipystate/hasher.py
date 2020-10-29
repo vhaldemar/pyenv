@@ -24,16 +24,16 @@ class HasherImpl(Hasher):
             h = HasherImpl.hash(value)
             return self._hashes[name] != h
         except TypeError as e:
-            print(f"an error occurred when hashing {name}: {e}")
+            # print(f"an error occurred when hashing {name}: {e}")
             traceback.print_exc()
             return True
 
     def update_hash(self, name: str, value: object):
         try:
             self._hashes[name] = Hasher.hash(value)
-            print(f"hashing {name} as {self._hashes[name]}")
+            # print(f"hashing {name} as {self._hashes[name]}")
         except TypeError as e:
-            print(f"an error occurred when hashing {name}: {e}")
+            # print(f"an error occurred when hashing {name}: {e}")
             traceback.print_exc()
 
     @staticmethod

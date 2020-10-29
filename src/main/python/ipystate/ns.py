@@ -64,7 +64,7 @@ class Namespace(dict):
         value = super()[name]
         changed = self._hasher.has_changed(name, value)
         self._hasher.update_hash(name, value)
-        print(f"{name}, changed={changed}")
+        # print(f"{name}, changed={changed}")
         return changed
 
     def _compute_comps(self) -> Iterable[Set[str]]:
