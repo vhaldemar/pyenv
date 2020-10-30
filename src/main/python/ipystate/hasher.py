@@ -14,6 +14,16 @@ class Hasher:
 
 
 class HasherImpl(Hasher):
+    identity = lambda x: x
+
+    dispatch = {
+        int: identity,
+        bool: identity,
+        float: identity,
+        type(None): hash,
+        str: hash
+    }
+
     def __init__(self):
         self._hashes = dict()
 
@@ -25,29 +35,27 @@ class HasherImpl(Hasher):
             return self._hashes[name] != h
         except TypeError as e:
             # print(f"an error occurred when hashing {name}: {e}")
-            traceback.print_exc()
+            # traceback.print_exc()
             return True
 
     def update_hash(self, name: str, value: object):
         try:
-            self._hashes[name] = Hasher.hash(value)
+            self._hashes[name] = HasherImpl.hash(value)
             # print(f"hashing {name} as {self._hashes[name]}")
         except TypeError as e:
             # print(f"an error occurred when hashing {name}: {e}")
-            traceback.print_exc()
+            # traceback.print_exc()
+            pass
 
     @staticmethod
     def hash(value: object) -> object:
-        for primitive in [bool, str, int, float, np.dtype]:
-            if isinstance(value, primitive):
-                return hash(value)
-
-        if isinstance(value, pd.DataFrame):
-            return HasherImpl.hash_df(value)
+        hash_fun = HasherImpl.dispatch.get(type(value))
+        if hash_fun is not None:
+            return hash_fun(value)
         raise TypeError(f"unsupported type: {type(value)}")
 
     @staticmethod
-    def hash_df(df):
+    def hash_df(df: pd.DataFrame):
         xx = xxhash.xxh3_64()
         xx.update(df.columns.values)
         xx.update(df.index.values)
@@ -63,3 +71,19 @@ class HasherImpl(Hasher):
 
         h = xx.digest()
         return h.hex()
+
+    dispatch[pd.DataFrame] = hash_df.__func__
+
+    @staticmethod
+    def hash_np_array(arr: np.ndarray):
+        if arr.dtype == object:
+            raise TypeError(f"dtype {arr.dtype} is not supported")
+        try:
+            xx = xxhash.xxh3_64()
+            xx.update(arr)
+            h = xx.digest()
+            return h.hex()
+        except Exception as e:
+            raise TypeError(f"failed to hash {np.ndarray} due to {str(e)}")
+
+    dispatch[np.ndarray] = hash_np_array.__func__

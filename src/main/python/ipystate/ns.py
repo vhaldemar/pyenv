@@ -59,9 +59,9 @@ class Namespace(dict):
         :param var_name:
         :return:
         """
-        if (name in self._deleted) or (name not in super()):
+        if name in self._deleted:
             return True
-        value = super()[name]
+        value = super().__getitem__(name)
         changed = self._hasher.has_changed(name, value)
         self._hasher.update_hash(name, value)
         # print(f"{name}, changed={changed}")
