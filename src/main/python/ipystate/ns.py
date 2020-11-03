@@ -5,7 +5,9 @@ from typing import Iterable, Dict, Set, Tuple
 from ipystate.serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump
 from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
 from ipystate.impl.walker import Walker
-from ipystate.impl.changedetector import ChangeDetector, ChangeStage, ChangedState, DummyChangeDetector
+from ipystate.impl.changedetector import ChangeStage, ChangedState, DummyChangeDetector
+from ipystate.impl.changedetector import XXHashChangeDetector
+
 
 class Namespace(dict):
     def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer):
@@ -18,7 +20,8 @@ class Namespace(dict):
         self._deserializer = deserializer
         self._walker = Walker(dispatch_table=serializer.configurable_dispatch_table)
         self._reset(new_comps=None)
-        self._change_detector = DummyChangeDetector()
+        # self._change_detector = DummyChangeDetector()
+        self._change_detector = XXHashChangeDetector()
 
     def _on_reset(self):
         """
@@ -105,8 +108,26 @@ class Namespace(dict):
         if name in self._touched:
             self._touched.remove(name)
 
+    def component_dump_changed(self, dump: ComponentDump) -> bool:
+        if len(dump.serialized_vars()) == 0:
+            # safety fallback
+            return True
+
+        if len(dump.non_serialized_vars()) > 0:
+            # safety fallback
+            return True
+
+        for pickled_var in dump.serialized_vars():
+            changed_state = self._change_detector.update(ChangeStage.PICKLED, pickled_var[0], pickled_var[1])
+            if ChangedState.UNCHANGED != changed_state:
+                return True
+
+        return False
+
     # noinspection PyUnresolvedReferences
     def commit(self) -> Iterable[AtomicChange]:
+        self._change_detector.begin()
+
         touched = set(filter(lambda v: not self._skip_variable(v), set(self._touched)))
         dirty = set(filter(self._probably_dirty, touched))
         comps1 = self._compute_comps()
@@ -117,7 +138,7 @@ class Namespace(dict):
             change_id = str(uuid.uuid1())
             if isinstance(dump, PrimitiveDump):
                 change = PrimitiveAtomicChange(change_id, dump.var(), dump.payload(), None)
-            elif isinstance(dump, ComponentDump):
+            elif isinstance(dump, ComponentDump) and self.component_dump_changed(dump):
                 change = ComponentAtomicChange(change_id,
                                                dump.all_vars(),
                                                dump.serialized_vars(),
@@ -130,3 +151,4 @@ class Namespace(dict):
             yield RemoveAtomicChange(str(uuid.uuid1()), var_name, None)
 
         self._reset(new_comps=comps1)
+        self._change_detector.end()
