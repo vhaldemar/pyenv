@@ -5,11 +5,11 @@ from typing import Iterable, Dict, Set
 from ipystate.serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump
 from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
 from ipystate.impl.walker import Walker
-from ipystate.impl.changedetector import ChangeStage, ChangedState, DummyChangeDetector
+from ipystate.impl.changedetector import ChangeStage, ChangedState, ChangeDetector
 
 
 class Namespace(dict):
-    def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer):
+    def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer, change_detector: ChangeDetector):
         super().__init__(init)
         self.armed = True
         self._touched = set()
@@ -19,7 +19,7 @@ class Namespace(dict):
         self._deserializer = deserializer
         self._walker = Walker(dispatch_table=serializer.configurable_dispatch_table)
         self._reset(new_comps=None)
-        self._change_detector = DummyChangeDetector()
+        self._change_detector = change_detector
 
     def _on_reset(self):
         """
