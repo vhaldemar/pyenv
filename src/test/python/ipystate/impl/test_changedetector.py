@@ -93,7 +93,7 @@ class TestXXHashChangeDetector(unittest.TestCase):
         df0 = pd.DataFrame(np.random.rand(1024**2, 4), columns=list('ABCD'))
 
         state = xxcd.update(ChangeStage.RAW, "df0", df0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         serialized = BufferFile()
         pickle.dump(df0, serialized)
@@ -146,10 +146,10 @@ class TestXXHashChangeDetector(unittest.TestCase):
         a0 = 123
 
         state = xxcd.update(ChangeStage.RAW, "a0", a0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         state = xxcd.update(ChangeStage.RAW, "a0", a0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         serialized = BufferFile()
         pickle.dump(a0, serialized)
@@ -173,10 +173,10 @@ class TestXXHashChangeDetector(unittest.TestCase):
         a0 = 0.123
 
         state = xxcd.update(ChangeStage.RAW, "a0", a0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         state = xxcd.update(ChangeStage.RAW, "a0", a0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         serialized = BufferFile()
         pickle.dump(a0, serialized)
@@ -201,10 +201,10 @@ class TestXXHashChangeDetector(unittest.TestCase):
         a0 = True
 
         state = xxcd.update(ChangeStage.RAW, "a0", a0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         state = xxcd.update(ChangeStage.RAW, "a0", a0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         serialized = BufferFile()
         pickle.dump(a0, serialized)
@@ -228,10 +228,10 @@ class TestXXHashChangeDetector(unittest.TestCase):
         a0 = None
 
         state = xxcd.update(ChangeStage.RAW, "a0", a0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         state = xxcd.update(ChangeStage.RAW, "a0", a0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         serialized = BufferFile()
         pickle.dump(a0, serialized)
@@ -255,10 +255,10 @@ class TestXXHashChangeDetector(unittest.TestCase):
         a0 = {"a": "a", "b": "b", "c": 123}
 
         state = xxcd.update(ChangeStage.RAW, "a0", a0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         state = xxcd.update(ChangeStage.RAW, "a0", a0)
-        self.assertEqual(state, ChangedState.CANT_HASH)
+        self.assertEqual(state, ChangedState.UNKNOWN)
 
         serialized = BufferFile()
         pickle.dump(a0, serialized)

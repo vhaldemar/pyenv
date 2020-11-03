@@ -11,7 +11,7 @@ import xxhash
 class ChangedState(Enum):
     NEW = 0
     CHANGED = 1
-    CANT_HASH = 2
+    UNKNOWN = 2
     UNCHANGED = 3
 
 
@@ -35,13 +35,12 @@ class ChangeDetector:
         pass
 
 
+class DummyChangeDetector(ChangeDetector):
+    def __init__(self):
+        super().__init__()
 
-# class DummyChangeDetector(ChangeDetector):
-#     def __init__(self):
-#         super().__init__()
-#
-#     def _update(self, stage: ChangeStage, name: str, value: object) -> ChangedState:
-#         pass
+    def update(self, stage: ChangeStage, name: str, value: object) -> ChangedState:
+        return ChangedState.UNKNOWN
 
 
 class HashChangeDetector(ChangeDetector):
@@ -63,7 +62,7 @@ class HashChangeDetector(ChangeDetector):
         try:
             hash_fun = self._dispatch.get(type(value))
             if hash_fun is None:
-                return ChangedState.CANT_HASH
+                return ChangedState.UNKNOWN
 
             key = str(stage) + "/" + name
             hash1 = hash_fun(value)
@@ -78,14 +77,14 @@ class HashChangeDetector(ChangeDetector):
             return ChangedState.UNCHANGED if (hash0 == hash1) else ChangedState.CHANGED
         except Exception as e:
             # TODO log error
-            return ChangedState.CANT_HASH
+            return ChangedState.UNKNOWN
 
     def update(self, stage: ChangeStage, name: str, value: object) -> ChangedState:
         state = None
         if stage == ChangeStage.PICKLED:
             if name in self._raw_cache:
                 cached_state = self._raw_cache[name]
-                if cached_state != ChangedState.CANT_HASH:
+                if cached_state != ChangedState.UNKNOWN:
                     state = cached_state
 
         if state is None:
