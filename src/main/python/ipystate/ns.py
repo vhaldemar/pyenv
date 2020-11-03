@@ -1,14 +1,15 @@
 import uuid
 
-from typing import Iterable, Dict, Set, Tuple
+from typing import Iterable, Dict, Set
 
 from ipystate.serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump
 from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
 from ipystate.impl.walker import Walker
+from ipystate.impl.changedetector import ChangeStage, ChangedState, ChangeDetector
 
 
 class Namespace(dict):
-    def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer):
+    def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer, change_detector: ChangeDetector):
         super().__init__(init)
         self.armed = True
         self._touched = set()
@@ -18,6 +19,7 @@ class Namespace(dict):
         self._deserializer = deserializer
         self._walker = Walker(dispatch_table=serializer.configurable_dispatch_table)
         self._reset(new_comps=None)
+        self._change_detector = change_detector
 
     def _on_reset(self):
         """
@@ -52,13 +54,19 @@ class Namespace(dict):
         """
         return False
 
-    def _probably_dirty(self, var_name: str) -> bool:
+    def _probably_dirty(self, name: str) -> bool:
         """
         Subclasses may override variable dirty check
         :param var_name:
         :return:
         """
-        return True
+        if name in self._deleted:
+            return True
+        value = super().__getitem__(name)
+
+        change_state = self._change_detector.update(ChangeStage.RAW, name, value)
+
+        return False if (ChangedState.UNCHANGED == change_state) else True
 
     def _compute_comps(self) -> Iterable[Set[str]]:
         return self._walker.walk(
@@ -98,8 +106,26 @@ class Namespace(dict):
         if name in self._touched:
             self._touched.remove(name)
 
+    def component_dump_changed(self, dump: ComponentDump) -> bool:
+        if len(dump.serialized_vars()) == 0:
+            # safety fallback
+            return True
+
+        if len(dump.non_serialized_vars()) > 0:
+            # safety fallback
+            return True
+
+        for pickled_var in dump.serialized_vars():
+            changed_state = self._change_detector.update(ChangeStage.PICKLED, pickled_var[0], pickled_var[1])
+            if ChangedState.UNCHANGED != changed_state:
+                return True
+
+        return False
+
     # noinspection PyUnresolvedReferences
     def commit(self) -> Iterable[AtomicChange]:
+        self._change_detector.begin()
+
         touched = set(filter(lambda v: not self._skip_variable(v), set(self._touched)))
         dirty = set(filter(self._probably_dirty, touched))
         comps1 = self._compute_comps()
@@ -110,7 +136,7 @@ class Namespace(dict):
             change_id = str(uuid.uuid1())
             if isinstance(dump, PrimitiveDump):
                 change = PrimitiveAtomicChange(change_id, dump.var(), dump.payload(), None)
-            elif isinstance(dump, ComponentDump):
+            elif isinstance(dump, ComponentDump) and self.component_dump_changed(dump):
                 change = ComponentAtomicChange(change_id,
                                                dump.all_vars(),
                                                dump.serialized_vars(),
@@ -123,3 +149,4 @@ class Namespace(dict):
             yield RemoveAtomicChange(str(uuid.uuid1()), var_name, None)
 
         self._reset(new_comps=comps1)
+        self._change_detector.end()
