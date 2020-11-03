@@ -43,6 +43,10 @@ class HashChangeDetector(ChangeDetector):
         self._hashes = dict()
         self._dispatch = dict()
 
+    def reset(self):
+        self._hashes = dict()
+        self._raw_cache = dict()
+
     def reset_raw_cache(self):
         self._raw_cache = dict()
 
