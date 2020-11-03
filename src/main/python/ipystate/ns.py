@@ -1,12 +1,11 @@
 import uuid
 
-from typing import Iterable, Dict, Set, Tuple
+from typing import Iterable, Dict, Set
 
 from ipystate.serialization import Serializer, Deserializer, PrimitiveDump, ComponentDump
 from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
 from ipystate.impl.walker import Walker
 from ipystate.impl.changedetector import ChangeStage, ChangedState, DummyChangeDetector
-from ipystate.impl.changedetector import XXHashChangeDetector
 
 
 class Namespace(dict):
@@ -20,8 +19,7 @@ class Namespace(dict):
         self._deserializer = deserializer
         self._walker = Walker(dispatch_table=serializer.configurable_dispatch_table)
         self._reset(new_comps=None)
-        # self._change_detector = DummyChangeDetector()
-        self._change_detector = XXHashChangeDetector()
+        self._change_detector = DummyChangeDetector()
 
     def _on_reset(self):
         """

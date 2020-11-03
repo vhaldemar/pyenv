@@ -1,11 +1,5 @@
 from abc import abstractmethod
-from typing import Dict
 from enum import Enum
-
-import numpy as np
-import pandas as pd
-import pandas.api.types as pd_types
-import xxhash
 
 
 class ChangedState(Enum):
@@ -94,57 +88,3 @@ class HashChangeDetector(ChangeDetector):
             self._raw_cache[name] = state
 
         return state
-
-    def store(self) -> Dict[str,str]:
-        # TODO implement
-        pass
-
-    def load(self, hashes: Dict[str,str]) -> None:
-        # TODO implement
-        pass
-
-
-class XXHashChangeDetector(HashChangeDetector):
-    @staticmethod
-    def hash_np_array(arr: np.ndarray):
-        if arr.dtype == object:
-            raise TypeError(f"dtype {arr.dtype} is not supported")
-        try:
-            xx = xxhash.xxh3_64()
-            xx.update(arr)
-            # h = xx.digest()
-            # return h.hex()
-            return xx.digest()
-        except Exception as e:
-            raise TypeError(f"failed to hash {np.ndarray} due to {str(e)}")
-
-    @staticmethod
-    def hash_df(df: pd.DataFrame):
-        xx = xxhash.xxh3_64()
-        xx.update(df.columns.values)
-        xx.update(df.index.values)
-        for c in df.columns:
-            na = df[c].values
-            if pd_types.is_categorical_dtype(df[c].dtype):
-                na = df[c].factorize()[0]
-
-            if na is not None:
-                if not na.flags.contiguous:
-                    raise TypeError("not C-contiguous column in dataframe")
-                xx.update(na.data)
-
-        # h = xx.digest()
-        # return h.hex()
-        return xx.digest()
-
-    @staticmethod
-    def hash_bytearray(ba: bytearray):
-        xx = xxhash.xxh3_64()
-        xx.update(ba)
-        return xx.digest()
-
-    def __init__(self):
-        super().__init__()
-        self._dispatch[np.ndarray] = self.hash_np_array
-        self._dispatch[pd.DataFrame] = self.hash_df
-        self._dispatch[bytearray] = self.hash_bytearray
