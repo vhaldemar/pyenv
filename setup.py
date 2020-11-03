@@ -9,8 +9,6 @@ setuptools.setup(
         'ipython==7.13.0',
         'cloudpickle==1.6.0',
         'numpy==1.19.1',
-        'pandas==0.25.3',
-        'xxhash==2.0.0',
     ],
     python_requires='>=3.7',
     classifiers=[
@@ -19,8 +17,4 @@ setuptools.setup(
     ],
     include_package_data=True,
     zip_safe=False,
-    tests_require=[
-        'numpy==1.19.1',
-        'pandas==0.25.3',
-    ],
 )
