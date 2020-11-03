@@ -18,5 +18,9 @@ setuptools.setup(
         'Framework :: Jupyter',
     ],
     include_package_data=True,
-    zip_safe=False
+    zip_safe=False,
+    tests_require=[
+        'numpy==1.19.1',
+        'pandas==0.25.3',
+    ],
 )
