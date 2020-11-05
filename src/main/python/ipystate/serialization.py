@@ -1,3 +1,4 @@
+import sys
 from abc import abstractmethod
 from collections import ChainMap
 from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO, Union
@@ -7,6 +8,7 @@ from cloudpickle import CloudPickler
 from .decl import VarDecl
 
 from .impl.components_fuser import ComponentsFuser
+from .impl.dispatch.common import CommonDispatcher
 from .impl.memo import ChunkedFile, TransactionalDict
 
 
@@ -89,6 +91,17 @@ class BytesUtil:
 class Serializer:
     def __init__(self):
         self._configurable_dispatch_table = ChainMap({}, CloudPickler.dispatch_table)
+
+    def register_reducers(self, tmp_path):
+        dispatchers = [CommonDispatcher()]
+        if 'tensorflow' in sys.modules:
+            from .impl.dispatch.tensorflow import TensorflowDispatcher
+            dispatchers.append(TensorflowDispatcher(tmp_path))
+        if 'pandas' in sys.modules:
+            from .impl.dispatch.dataframe import DataframeDispatcher
+            dispatchers.append(DataframeDispatcher())
+        for d in dispatchers:
+            d.register(self._configurable_dispatch_table)
 
     @property
     def configurable_dispatch_table(self):
