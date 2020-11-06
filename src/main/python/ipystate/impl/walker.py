@@ -6,12 +6,9 @@ from itertools import islice
 from typing import Tuple, Dict, Iterable, Callable, Set
 
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
-from ipystate.impl.registry import CodeRegistry, FuncRegistry, ModuleRegistry
 
 
 class Walker:
-    REGISTRY = [CodeRegistry(), FuncRegistry(), ModuleRegistry()]
-
     def __init__(self, logger=None, dispatch_table=None):
         self._logger = logger
         self._constant = object()
@@ -25,8 +22,6 @@ class Walker:
         if dispatch_table is None:
             dispatch_table = copyreg.dispatch_table.copy()
         self._dispatch_table = dispatch_table
-        for registry in Walker.REGISTRY:
-            dispatch_table[registry.type()] = registry.reduce
 
     def walk(self, env: Dict[str, object]) -> Iterable[Set[str]]:
         self._object_labels = {}

@@ -7,31 +7,46 @@ import importlib
 import _thread
 
 
+@constructor
+def _code_constructor(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
+                      varnames, filename, name, firstlineno, lnotab, freevars, cellvars):
+    # noinspection PyTypeChecker
+    return CodeType(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
+                    varnames, filename, name, firstlineno, lnotab, freevars, cellvars)
+
+
+@constructor
+def _function_constructor(code, fglobals, name, argdefs, closure, kwdefaults, fdict, annotations, qualname,
+                         doc,
+                         module):
+    # noinspection PyTypeChecker
+    func = FunctionType(code, fglobals, name, argdefs, closure)
+    func.__kwdefaults__ = kwdefaults
+    func.__dict__ = fdict
+    func.__annotations__ = annotations
+    func.__qualname__ = qualname
+    func.__doc__ = doc
+    func.__module__ = module
+    return func
+
+
 class CommonDispatcher(Dispatcher):
+    @staticmethod
+    def _create_weakref(obj, *args):
+        from weakref import ref
+        if obj is None:  # it's dead
+            from collections import UserDict
+            return ref(UserDict(), *args)
+        return ref(obj, *args)
 
     @staticmethod
     def _reduce_weakref(wkref):
-        def create_weakref(obj, *args):
-            from weakref import ref
-            if obj is None:  # it's dead
-                from collections import UserDict
-                return ref(UserDict(), *args)
-            return ref(obj, *args)
-
         obj = wkref()
-        return create_weakref, (obj,)
+        return CommonDispatcher._create_weakref, (obj,)
 
     @staticmethod
     def _reduce_code(code):
-        @constructor
-        def code_constructor(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
-                             varnames, filename, name, firstlineno, lnotab, freevars, cellvars):
-            # noinspection PyTypeChecker
-            return CodeType(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
-                            varnames, filename, name, firstlineno, lnotab, freevars, cellvars)
-
-        # noinspection PyUnresolvedReferences
-        return code_constructor, (
+        return _code_constructor, (
             code.co_argcount, code.co_kwonlyargcount, code.co_nlocals, code.co_stacksize, code.co_flags, code.co_code,
             code.co_consts, code.co_names, code.co_varnames, code.co_filename, code.co_name, code.co_firstlineno,
             code.co_lnotab, code.co_freevars, code.co_cellvars
@@ -39,20 +54,6 @@ class CommonDispatcher(Dispatcher):
 
     @staticmethod
     def _reduce_func(func):
-        @constructor
-        def function_constructor(code, fglobals, name, argdefs, closure, kwdefaults, fdict, annotations, qualname,
-                                 doc,
-                                 module):
-            # noinspection PyTypeChecker
-            func = FunctionType(code, fglobals, name, argdefs, closure)
-            func.__kwdefaults__ = kwdefaults
-            func.__dict__ = fdict
-            func.__annotations__ = annotations
-            func.__qualname__ = qualname
-            func.__doc__ = doc
-            func.__module__ = module
-            return func
-
         if hasattr(func, SAVE_GLOBAL_FUNC_ATTR):
             return SAVE_GLOBAL
 
@@ -63,7 +64,7 @@ class CommonDispatcher(Dispatcher):
             return SAVE_GLOBAL
 
         # noinspection PyUnresolvedReferences
-        return function_constructor, (
+        return _function_constructor, (
             func.__code__, func.__globals__, func.__name__, func.__defaults__, func.__closure__, func.__kwdefaults__,
             func.__dict__, func.__annotations__, func.__qualname__, func.__doc__, func.__module__,
         )

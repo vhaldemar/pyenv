@@ -91,12 +91,13 @@ class BytesUtil:
 class Serializer:
     def __init__(self):
         self._configurable_dispatch_table = ChainMap({}, CloudPickler.dispatch_table)
+        self._tmp_path = None
 
-    def register_reducers(self, tmp_path):
+    def register_reducers(self):
         dispatchers = [CommonDispatcher()]
-        if 'tensorflow' in sys.modules:
+        if self._tmp_path is not None and 'tensorflow' in sys.modules:
             from .impl.dispatch.tensorflow import TensorflowDispatcher
-            dispatchers.append(TensorflowDispatcher(tmp_path))
+            dispatchers.append(TensorflowDispatcher(self._tmp_path))
         if 'pandas' in sys.modules:
             from .impl.dispatch.dataframe import DataframeDispatcher
             dispatchers.append(DataframeDispatcher())

@@ -1,3 +1,5 @@
+import cloudpickle
+
 from ipystate.impl.dispatch.dispatcher import Dispatcher
 import pandas as pd
 import pyarrow as pa
@@ -58,17 +60,26 @@ class _DataFrameParquetAdapter:
 
 class DataframeDispatcher(Dispatcher):
     @staticmethod
-    def _reduce_dataframe(df):
-        def create_df(bb) -> pd.DataFrame:
-            br = pa.BufferReader(bb)
-            df_ = pd.read_parquet(br, engine='pyarrow')
-            return _DataFrameParquetAdapter.restore_after_parquet(df_)
+    def _pickle_reduce(df):
+        reduce = getattr(df, "__reduce_ex__", None)
+        return reduce(cloudpickle.DEFAULT_PROTOCOL)
 
-        buffer_os = pa.BufferOutputStream()
-        df1 = _DataFrameParquetAdapter.prepare_for_parquet(df)
-        df1.to_parquet(buffer_os, engine='pyarrow')
-        buffer = buffer_os.getvalue()
-        return create_df, (buffer,)
+    @staticmethod
+    def _create_df(bb) -> pd.DataFrame:
+        br = pa.BufferReader(bb)
+        df = pd.read_parquet(br, engine='pyarrow')
+        return _DataFrameParquetAdapter.restore_after_parquet(df)
+
+    @staticmethod
+    def _reduce_dataframe(df):
+        try:
+            buffer_os = pa.BufferOutputStream()
+            df1 = _DataFrameParquetAdapter.prepare_for_parquet(df)
+            df1.to_parquet(buffer_os, engine='pyarrow')
+            buffer = buffer_os.getvalue()
+            return DataframeDispatcher._create_df, (buffer,)
+        except:
+            return DataframeDispatcher._pickle_reduce(df)
 
     def register(self, dispatch):
         dispatch[pd.DataFrame] = self._reduce_dataframe

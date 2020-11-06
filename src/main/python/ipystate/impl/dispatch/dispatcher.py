@@ -4,10 +4,7 @@ from abc import abstractmethod
 class Dispatcher:
     @staticmethod
     def _reduce_without_args(_type):
-        def reduce_impl(_):
-            return _type, ()
-
-        return reduce_impl
+        return lambda _: _type, ()
 
     @abstractmethod
     def register(self, dispatch):
