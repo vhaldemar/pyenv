@@ -111,11 +111,11 @@ class TensorflowDispatcher(Dispatcher):
         dispatch[tf.Graph] = self._reduce_tf_graph
         dispatch[tf.Variable] = self._reduce_tf_var
         dispatch[tf.Operation] = self._reduce_tf_op
+        dispatch[tf.keras.Model] = self._reduce_tf_model
+        dispatch[tf.keras.Sequential] = self._reduce_tf_model
         if int(tf.__version__.split('.')[0]) <= 1:
             pass
         else:
-            dispatch[tf.keras.Model] = self._reduce_tf_model
-            dispatch[tf.keras.Sequential] = self._reduce_tf_model
             # noinspection PyUnresolvedReferences
             dispatch[tf.python.ops.variable_scope._VariableScopeStore] = self._reduce_without_args(
                 tf.python.ops.variable_scope._VariableScopeStore)
