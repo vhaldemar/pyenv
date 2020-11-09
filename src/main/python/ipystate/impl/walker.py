@@ -1,6 +1,6 @@
 import copyreg
+import sys
 import types
-import numpy
 from itertools import groupby
 from itertools import islice
 from typing import Tuple, Dict, Iterable, Callable, Set
@@ -24,6 +24,11 @@ class Walker:
         self._dispatch_table = dispatch_table
 
     def walk(self, env: Dict[str, object]) -> Iterable[Set[str]]:
+        if 'numpy' in sys.modules:
+            import numpy
+
+            self.dispatch[numpy.dtype] = self.save_constant
+
         self._object_labels = {}
         self._memo = {}
 
@@ -202,7 +207,6 @@ class Walker:
     dispatch[float] = save_constant
     dispatch[bytes] = save_constant
     dispatch[str] = save_constant
-    dispatch[numpy.dtype] = save_constant
 
     def _save_tuple(self, obj: Tuple) -> object:
         if not obj:  # tuple is empty

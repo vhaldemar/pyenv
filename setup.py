@@ -8,9 +8,11 @@ setuptools.setup(
     install_requires=[
         'ipython==7.13.0',
         'cloudpickle==1.6.0',
-        'numpy==1.19.1',
         'pyarrow>=0.17.1',
         'pybase64==1.0.0',
+    ],
+    tests_require=[
+        'numpy',
     ],
     python_requires='>=3.7',
     classifiers=[
