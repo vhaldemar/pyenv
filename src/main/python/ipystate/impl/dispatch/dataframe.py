@@ -15,10 +15,7 @@ class _DataFrameParquetAdapter:
 
     @staticmethod
     def _all_str(cols) -> bool:
-        for c in cols:
-            if type(c) is not str:
-                return False
-        return True
+        return all(isinstance(c, str) for c in cols)
 
     @staticmethod
     def _is_pq_converted(cols) -> bool:

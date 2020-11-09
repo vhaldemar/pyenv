@@ -8,17 +8,19 @@ import _thread
 
 
 @constructor
-def _code_constructor(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
-                      varnames, filename, name, firstlineno, lnotab, freevars, cellvars):
+def _code_constructor(
+    argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names, varnames, filename, name,
+    firstlineno, lnotab, freevars, cellvars
+):
     # noinspection PyTypeChecker
     return CodeType(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
                     varnames, filename, name, firstlineno, lnotab, freevars, cellvars)
 
 
 @constructor
-def _function_constructor(code, fglobals, name, argdefs, closure, kwdefaults, fdict, annotations, qualname,
-                         doc,
-                         module):
+def _function_constructor(
+    code, fglobals, name, argdefs, closure, kwdefaults, fdict, annotations, qualname, doc, module
+):
     # noinspection PyTypeChecker
     func = FunctionType(code, fglobals, name, argdefs, closure)
     func.__kwdefaults__ = kwdefaults
