@@ -1,6 +1,8 @@
 from abc import abstractmethod
 from enum import Enum
 
+from ipystate.dynamic_type_mapping import DynamicTypeMapping
+
 
 class ChangedState(Enum):
     NEW = 0
@@ -41,7 +43,7 @@ class HashChangeDetector(ChangeDetector):
     def __init__(self):
         super().__init__()
         self._hashes = dict()
-        self._dispatch = dict()
+        self._dispatch = DynamicTypeMapping()
 
     def reset(self):
         self._hashes = dict()
