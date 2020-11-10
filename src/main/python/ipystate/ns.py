@@ -18,8 +18,8 @@ class Namespace(dict):
         self._serializer = serializer
         self._deserializer = deserializer
         self._walker = Walker(dispatch_table=serializer.configurable_dispatch_table)
-        self._reset(new_comps=None)
         self._change_detector = change_detector
+        self._reset(new_comps=None)
 
     def _on_reset(self):
         """
