@@ -7,6 +7,8 @@ from typing import Tuple, Dict, Iterable, Callable, Set
 
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
 
+LIST_SIZE_WALK_LIMIT = 1000
+
 
 class Walker:
     def __init__(self, logger=None, dispatch_table=None):
@@ -18,10 +20,17 @@ class Walker:
 
         self._labels_found = None
         self._current_label = None
+        self._full_walk = False
 
         if dispatch_table is None:
             dispatch_table = copyreg.dispatch_table.copy()
         self._dispatch_table = dispatch_table
+
+    def enable_full_walk(self):
+        self._full_walk = True
+
+    def disable_full_walk(self):
+        self._full_walk = False
 
     def walk(self, env: Dict[str, object]) -> Iterable[Set[str]]:
         if 'numpy' in sys.modules:
@@ -232,6 +241,10 @@ class Walker:
 
     def _save_list(self, obj) -> None:
         self._memoize(obj)
+        size = len(obj)
+        if not self._full_walk and size > LIST_SIZE_WALK_LIMIT:
+            self._logger.warn("Skipping walk through list with size: " + str(size))
+            return
         for x in obj:
             self._save(x)
 
