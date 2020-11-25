@@ -7,7 +7,7 @@ from typing import Tuple, Dict, Iterable, Callable, Set
 
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
 
-LIST_SIZE_WALK_LIMIT = 1000
+WALK_DEPTH_LIMIT = 1000
 
 
 class Walker:
@@ -21,6 +21,7 @@ class Walker:
         self._labels_found = None
         self._current_label = None
         self._full_walk = False
+        self._current_depth = 0
 
         if dispatch_table is None:
             dispatch_table = copyreg.dispatch_table.copy()
@@ -45,12 +46,12 @@ class Walker:
         for name in env.keys():
             self._labels_found = {name}
             self._current_label = name
+            self._current_depth = 0
             try:
                 self._save(env[name])
             except Exception as e:
                 self._error(f"Walker: could not walk through variable {name} of type {type(env[name])}")
                 self._error(f"Error: {str(e)}")
-                self._labels_found = {name}
             finally:
                 label_sets.append(self._labels_found)
 
@@ -86,6 +87,10 @@ class Walker:
         return id(obj) in self._object_labels
 
     def _save(self, obj: object) -> None:
+        if not self._full_walk and self._current_depth > WALK_DEPTH_LIMIT:
+            raise Exception('walk depth limit exceeded')
+        self._current_depth += 1
+
         assert self._labels_found is not None
         was_visited = self._was_visited(obj)
         self._visit_object(obj)
@@ -101,6 +106,7 @@ class Walker:
         t = type(obj)
         f = self.dispatch.get(t)
         if f is not None:
+            # noinspection PyArgumentList
             result = f(self, obj)  # Call unbound method with explicit self
             if result == self._constant:
                 self._unvisit_object(obj)
@@ -241,10 +247,6 @@ class Walker:
 
     def _save_list(self, obj) -> None:
         self._memoize(obj)
-        size = len(obj)
-        if not self._full_walk and size > LIST_SIZE_WALK_LIMIT:
-            self._logger.warn("Skipping walk through list with size: " + str(size))
-            return
         for x in obj:
             self._save(x)
 
