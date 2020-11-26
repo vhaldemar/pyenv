@@ -330,6 +330,7 @@ class Walker:
 
     def _should_stop_walking(self, obj, size: int) -> bool:
         if self._current_subtree_size + size > WALK_SUBTREE_LIMIT:
-            self._logger.warn('Skipping walk through ' + str(type(obj)) + ' with size: ' + str(size))
+            if self._logger is not None:
+                self._logger.warn('Skipping walk through ' + str(type(obj)) + ' with size: ' + str(size))
             return True
         return False
