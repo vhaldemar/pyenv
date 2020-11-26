@@ -247,6 +247,8 @@ class Walker:
 
     def _save_list(self, obj) -> None:
         self._memoize(obj)
+        if self._should_stop_walking(obj, len(obj)):
+            return
         for x in obj:
             self._save(x)
 
@@ -258,6 +260,8 @@ class Walker:
 
     def _save_dict(self, obj) -> None:
         self._memoize(obj)
+        if self._should_stop_walking(obj, len(obj)):
+            return
         self._batch_setitems(obj.items())
 
     dispatch[dict] = _save_dict
@@ -269,21 +273,19 @@ class Walker:
 
     def _save_set(self, obj) -> None:
         self._memoize(obj)
-
+        if self._should_stop_walking(obj, len(obj)):
+            return
         for item in obj:
             self._save(item)
 
     dispatch[set] = _save_set
 
     def _save_frozenset(self, obj) -> None:
+        self._memoize(obj)
+        if self._should_stop_walking(obj, len(obj)):
+            return
         for item in obj:
             self._save(item)
-
-        if id(obj) in self._memo:
-            # recursive
-            return
-
-        self._memoize(obj)
 
     dispatch[frozenset] = _save_frozenset
 
@@ -325,3 +327,9 @@ class Walker:
         # growable) array, indexed by memo key.
         # assert id(obj) not in self._memo
         self._memo[id(obj)] = obj
+
+    def _should_stop_walking(self, obj, size: int) -> bool:
+        if self._current_subtree_size + size > WALK_SUBTREE_LIMIT:
+            self._logger.warn('Skipping walk through ' + str(type(obj)) + ' with size: ' + str(size))
+            return True
+        return False
