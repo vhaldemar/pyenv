@@ -7,7 +7,7 @@ from typing import Tuple, Dict, Iterable, Callable, Set
 
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
 
-WALK_DEPTH_LIMIT = 1000
+WALK_SUBTREE_LIMIT = 1000
 
 
 class Walker:
@@ -21,7 +21,7 @@ class Walker:
         self._labels_found = None
         self._current_label = None
         self._full_walk = False
-        self._current_depth = 0
+        self._current_subtree_size = 0
 
         if dispatch_table is None:
             dispatch_table = copyreg.dispatch_table.copy()
@@ -46,7 +46,7 @@ class Walker:
         for name in env.keys():
             self._labels_found = {name}
             self._current_label = name
-            self._current_depth = 0
+            self._current_subtree_size = 0
             try:
                 self._save(env[name])
             except Exception as e:
@@ -87,9 +87,9 @@ class Walker:
         return id(obj) in self._object_labels
 
     def _save(self, obj: object) -> None:
-        if not self._full_walk and self._current_depth > WALK_DEPTH_LIMIT:
+        if not self._full_walk and self._current_subtree_size > WALK_SUBTREE_LIMIT:
             raise Exception('walk depth limit exceeded')
-        self._current_depth += 1
+        self._current_subtree_size += 1
 
         assert self._labels_found is not None
         was_visited = self._was_visited(obj)
