@@ -36,8 +36,12 @@ class Walker:
     def walk(self, env: Dict[str, object]) -> Iterable[Set[str]]:
         if 'numpy' in sys.modules:
             import numpy
-
             self.dispatch[numpy.dtype] = self.save_constant
+
+        if 'pandas' in sys.modules:
+            import pandas
+            self.dispatch[pandas.DataFrame] = self.save_constant
+            self.dispatch[pandas.Series] = self.save_constant
 
         self._object_labels = {}
         self._memo = {}
