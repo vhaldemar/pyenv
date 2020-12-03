@@ -115,12 +115,13 @@ class Namespace(dict):
             # safety fallback
             return True
 
+        has_changed = False
         for pickled_var in dump.serialized_vars():
             changed_state = self._change_detector.update(ChangeStage.PICKLED, pickled_var[0], pickled_var[1])
             if ChangedState.UNCHANGED != changed_state:
-                return True
+                has_changed = True
 
-        return False
+        return has_changed
 
     # noinspection PyUnresolvedReferences
     def commit(self) -> Iterable[AtomicChange]:
