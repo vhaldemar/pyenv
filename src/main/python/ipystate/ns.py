@@ -46,6 +46,10 @@ class Namespace(dict):
         # clear dirty/deleted and compute components:
         self._reset(new_comps=None)
 
+    def soft_reset(self):
+        self._touched.clear()
+        self._deleted.clear()
+
     def _skip_variable(self, var_name: str) -> bool:
         """
         Subclasses may override variable skipping
