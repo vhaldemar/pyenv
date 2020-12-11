@@ -9,8 +9,7 @@ from ipystate.impl.changedetector import ChangeStage, ChangedState, ChangeDetect
 
 
 class Namespace(dict):
-    def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer,
-                 change_detector: ChangeDetector):
+    def __init__(self, init: Dict[str, object], serializer: Serializer, deserializer: Deserializer, change_detector: ChangeDetector):
         super().__init__(init)
         self.armed = True
         self._touched = set()
@@ -28,7 +27,7 @@ class Namespace(dict):
         :return:
         """
         pass
-
+    
     def _reset(self, new_comps: Iterable[Set[str]]) -> None:
         '''
         Reset changes
@@ -98,9 +97,7 @@ class Namespace(dict):
             # so we can re-serialize components affected by del
             self._deleted.add(name)
             self._touched.add(name)
-
-        if self.__contains__(name):
-            super().__delitem__(name)
+        super().__delitem__(name)
 
     def touched(self) -> Set[str]:
         return set(self._touched)
