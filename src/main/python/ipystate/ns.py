@@ -85,12 +85,14 @@ class Namespace(dict):
                 self._deleted.remove(name)
 
     def __getitem__(self, name: str) -> object:
-        if self.armed and super().__contains__(name):
+        # self.__contains__ as we can override this method
+        if self.armed and self.__contains__(name):
             self.mark_touched(name)
         return super().__getitem__(name)
 
     def __delitem__(self, name: str) -> None:
-        if self.armed and super().__contains__(name):
+        # self.__contains__ as we can override this method
+        if self.armed and self.__contains__(name):
             # we assume deleted variable to be dirty as well,
             # so we can re-serialize components affected by del
             self._deleted.add(name)
