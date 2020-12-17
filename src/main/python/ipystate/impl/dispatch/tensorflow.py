@@ -116,8 +116,7 @@ class TensorflowDispatcher(Dispatcher):
         if int(tf.__version__.split('.')[0]) <= 1:
             pass
         else:
-            # noinspection PyUnresolvedReferences
-            dispatch[tf.python.ops.variable_scope._VariableScopeStore] = self._reduce_without_args(
-                tf.python.ops.variable_scope._VariableScopeStore)
-            # noinspection PyUnresolvedReferences
-            dispatch[tf.python._tf_stack.StackSummary] = self._reduce_without_args(tf.python._tf_stack.StackSummary)
+            from tensorflow.python.ops.variable_scope import _VariableScopeStore
+            dispatch[_VariableScopeStore] = self._reduce_without_args(_VariableScopeStore)
+            from tensorflow.python._tf_stack import StackSummary
+            dispatch[StackSummary] = self._reduce_without_args(StackSummary)
