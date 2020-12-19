@@ -37,6 +37,7 @@ class Walker:
         if 'numpy' in sys.modules:
             import numpy
             self.dispatch[numpy.dtype] = self.save_constant
+            self.dispatch[numpy.ndarray] = self.save_constant
 
         if 'pandas' in sys.modules:
             import pandas
