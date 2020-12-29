@@ -17,19 +17,8 @@ def _code_constructor(
                     varnames, filename, name, firstlineno, lnotab, freevars, cellvars)
 
 
-@constructor
-def _function_constructor(
-    code, fglobals, name, argdefs, closure, kwdefaults, fdict, annotations, qualname, doc, module
-):
-    # noinspection PyTypeChecker
-    func = FunctionType(code, fglobals, name, argdefs, closure)
-    func.__kwdefaults__ = kwdefaults
-    func.__dict__ = fdict
-    func.__annotations__ = annotations
-    func.__qualname__ = qualname
-    func.__doc__ = doc
-    func.__module__ = module
-    return func
+def _function_constructor(code):
+    pass
 
 
 class CommonDispatcher(Dispatcher):
@@ -67,8 +56,8 @@ class CommonDispatcher(Dispatcher):
 
         # noinspection PyUnresolvedReferences
         return _function_constructor, (
-            func.__code__, func.__globals__, func.__name__, func.__defaults__, func.__closure__, func.__kwdefaults__,
-            func.__dict__, func.__annotations__, func.__qualname__, func.__doc__, func.__module__,
+            func.__code__,
+            # don't pass __globals__, etc to avoid grabbing function's scope
         )
 
     @staticmethod

@@ -164,8 +164,8 @@ class Walker:
         labels = self._object_labels.setdefault(id(obj), self._labels_found)
         self._labels_found.update(labels)
         labels.add(self._current_label)
-        if isinstance(obj, types.CodeType):
-            labels.update(obj.co_names)
+        # co_names was removed here,
+        # co_names - tuple of names of local variables
 
     def _unvisit_object(self, obj: object) -> None:
         del self._object_labels[id(obj)]
