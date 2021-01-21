@@ -90,6 +90,9 @@ class StateManager(abc.ABC):
     def clear_state(self) -> None:
         pass
 
+    def load_failed(self, varname: str, message: str) -> None:
+        pass
+
     @abc.abstractmethod
     def _skip_variable(self, var_name: str) -> bool:
         """
