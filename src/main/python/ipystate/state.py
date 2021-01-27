@@ -25,11 +25,19 @@ class CellEffects:
 
 class State(abc.ABC):
     @abc.abstractmethod
+    def start_transaction(self) -> None:
+        pass
+
+    @abc.abstractmethod
     def pre_cell(self) -> None:
         pass
 
     @abc.abstractmethod
-    def post_cell(self) -> CellEffects:
+    def post_cell(self) -> None:
+        pass
+
+    @abc.abstractmethod
+    def end_transaction(self) -> CellEffects:
         pass
 
     @abc.abstractmethod
@@ -60,6 +68,7 @@ class StateManager(abc.ABC):
         self._serializer = serializer
         self._walker = Walker(dispatch_table=serializer.configurable_dispatch_table)
         self._change_detector = change_detector
+        self._in_transaction = False
 
     @property
     def state(self) -> State:
@@ -84,6 +93,9 @@ class StateManager(abc.ABC):
 
     def pre_cell(self) -> None:
         self._fill_ns()
+        if not self._in_transaction:
+            self._in_transaction = True
+            self._state.start_transaction()
         self._state.pre_cell()
 
     @abc.abstractmethod
@@ -138,7 +150,7 @@ class StateManager(abc.ABC):
     def post_cell_commit(self) -> Iterable[AtomicChange]:
         self._change_detector.begin()
         try:
-            effects = self._state.post_cell()
+            effects = self._state.end_transaction()
             touched = frozenset(filter(lambda v: not self._skip_variable(v), effects.touched))
             deleted = effects.deleted
             probably_dirty = frozenset(filter(self._probably_dirty, touched)).union(deleted)
@@ -165,3 +177,4 @@ class StateManager(abc.ABC):
             self._set_components(new_comps=comps1)
         finally:
             self._change_detector.end()
+            self._in_transaction = False
