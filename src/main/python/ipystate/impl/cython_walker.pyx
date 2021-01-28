@@ -36,13 +36,13 @@ class CythonWalker:
     def walk(self, env: Dict[str, object]) -> Iterable[Set[str]]:
         if 'numpy' in sys.modules:
             import numpy
-            self.dispatch[numpy.dtype] = self.save_constant
-            self.dispatch[numpy.ndarray] = self.save_constant
+            self.dispatch[numpy.dtype]   = CythonWalker.ignore_subtree
+            self.dispatch[numpy.ndarray] = CythonWalker.ignore_subtree
 
         if 'pandas' in sys.modules:
             import pandas
-            self.dispatch[pandas.DataFrame] = self.save_constant
-            self.dispatch[pandas.Series] = self.save_constant
+            self.dispatch[pandas.DataFrame] = CythonWalker.ignore_subtree
+            self.dispatch[pandas.Series]    = CythonWalker.ignore_subtree
 
         self._object_labels = {}
         self._memo = {}
@@ -97,22 +97,24 @@ class CythonWalker:
         self._current_subtree_size += 1
 
         assert self._labels_found is not None
+
+        # check object type
+        t = type(obj)
+        dispatch_f = self.dispatch.get(t)
+        # do nothing if saving constant or saving a forbidden obj
+        if dispatch_f == CythonWalker.save_constant or obj in self.forbidden_objects:
+            return None
+
         was_visited = self._was_visited(obj)
         self._visit_object(obj)
 
-        if was_visited:
-            return None
-
-        if obj is type(None) or obj is type(NotImplemented) or obj is type(...):
-            self._unvisit_object(obj)
+        if was_visited or dispatch_f == CythonWalker.ignore_subtree:
             return None
 
         # visit with dispatch table
-        t = type(obj)
-        f = self.dispatch.get(t)
-        if f is not None:
+        if dispatch_f is not None:
             # noinspection PyArgumentList
-            result = f(self, obj)  # Call unbound method with explicit self
+            result = dispatch_f(self, obj)  # Call unbound method with explicit self
             if result == self._constant:
                 self._unvisit_object(obj)
             return result
@@ -216,17 +218,23 @@ class CythonWalker:
 
     # Methods below this point are dispatched through the dispatch table
 
+    forbidden_objects = (type(None), type(NotImplemented), type(...))
+
     dispatch = {}
 
     def save_constant(self, _) -> object:
         return self._constant
 
+    def ignore_subtree(self, _):
+        pass
+
     dispatch[type(None)] = save_constant
     dispatch[bool] = save_constant
     dispatch[int] = save_constant
     dispatch[float] = save_constant
-    dispatch[bytes] = save_constant
     dispatch[str] = save_constant
+
+    dispatch[bytes] = ignore_subtree
 
     def _save_tuple(self, obj: Tuple) -> object:
         if not obj:  # tuple is empty
