@@ -2,12 +2,12 @@ import abc
 import uuid
 
 from typing import Iterable, Set, FrozenSet
-from logging import Logger
 
 from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
 from ipystate.serialization import Serializer, PrimitiveDump, ComponentDump
 from ipystate.impl.changedetector import ChangeDetector, ChangeStage, ChangedState
 from ipystate.impl.walker import Walker
+from ipystate.logger import Logger
 
 
 class CellEffects:
