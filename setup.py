@@ -20,6 +20,7 @@ setuptools.setup(
         'pyarrow>=0.17.1,<=2.0.0',
         'pybase64>=1.0.0,<=1.0.2',
         'cython==0.29.5',
+        'pympler==0.9',
     ],
     tests_require=[
         'numpy',
