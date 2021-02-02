@@ -1,13 +1,13 @@
 import copyreg
 import sys
-import types
+
 from itertools import groupby
 from itertools import islice
 from typing import Tuple, Dict, Iterable, Callable, Set
 
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
 
-WALK_SUBTREE_LIMIT = 1000
+WALK_SUBTREE_LIMIT = 20000
 
 
 class Walker:
