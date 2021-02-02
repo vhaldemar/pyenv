@@ -7,6 +7,7 @@ from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomic
 from ipystate.serialization import Serializer, PrimitiveDump, ComponentDump
 from ipystate.impl.changedetector import ChangeDetector, ChangeStage, ChangedState
 from ipystate.impl.walker import Walker
+from ipystate.logger import Logger
 
 
 class CellEffects:
@@ -62,13 +63,14 @@ class State(abc.ABC):
 
 
 class StateManager(abc.ABC):
-    def __init__(self, state: State, serializer: Serializer, change_detector: ChangeDetector):
+    def __init__(self, state: State, serializer: Serializer, change_detector: ChangeDetector, logger: Logger = None):
         self._state = state
         self._comps0 = []
         self._serializer = serializer
-        self._walker = Walker(dispatch_table=serializer.configurable_dispatch_table)
+        self._walker = Walker(logger=logger, dispatch_table=serializer.configurable_dispatch_table)
         self._change_detector = change_detector
         self._in_transaction = False
+        self._logger = logger
 
     @property
     def state(self) -> State:

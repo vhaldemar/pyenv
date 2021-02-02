@@ -1,17 +1,17 @@
 import copyreg
 import sys
-import types
 from itertools import groupby
 from itertools import islice
 from typing import Tuple, Dict, Iterable, Callable, Set
 
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
+from ipystate.logger import Logger
 
 WALK_SUBTREE_LIMIT = 1000
 
 
 class Walker:
-    def __init__(self, logger=None, dispatch_table=None):
+    def __init__(self, logger: Logger = None, dispatch_table=None):
         self._logger = logger
         self._constant = object()
 
@@ -36,13 +36,13 @@ class Walker:
     def walk(self, env: Dict[str, object]) -> Iterable[Set[str]]:
         if 'numpy' in sys.modules:
             import numpy
-            self.dispatch[numpy.dtype] = self.save_constant
-            self.dispatch[numpy.ndarray] = self.save_constant
+            self.dispatch[numpy.dtype]   = Walker.ignore_subtree
+            self.dispatch[numpy.ndarray] = Walker.ignore_subtree
 
         if 'pandas' in sys.modules:
             import pandas
-            self.dispatch[pandas.DataFrame] = self.save_constant
-            self.dispatch[pandas.Series] = self.save_constant
+            self.dispatch[pandas.DataFrame] = Walker.ignore_subtree
+            self.dispatch[pandas.Series]    = Walker.ignore_subtree
 
         self._object_labels = {}
         self._memo = {}
@@ -221,11 +221,14 @@ class Walker:
     def save_constant(self, _) -> object:
         return self._constant
 
+    def ignore_subtree(self, _):
+        pass
+
     dispatch[type(None)] = save_constant
     dispatch[bool] = save_constant
     dispatch[int] = save_constant
     dispatch[float] = save_constant
-    dispatch[bytes] = save_constant
+    dispatch[bytes] = ignore_subtree
     dispatch[str] = save_constant
 
     def _save_tuple(self, obj: Tuple) -> object:
