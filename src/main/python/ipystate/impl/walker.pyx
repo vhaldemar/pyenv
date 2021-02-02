@@ -1,5 +1,6 @@
 import copyreg
 import sys
+import warnings
 
 from itertools import groupby
 from itertools import islice
@@ -94,6 +95,11 @@ class Walker:
 
     def _save(self, obj: object) -> None:
         if not self._full_walk and self._current_subtree_size > WALK_SUBTREE_LIMIT:
+            if self._logger is not None:
+                message = f"Skipping walk through {str(type(obj))}\n"\
+                          "Walking trough too many objects\n"\
+                          "Use %enable_full_walk to serialize all variables correctly"
+                warnings.warn_explicit(message)
             raise Exception('walk depth limit exceeded')
         self._current_subtree_size += 1
 
@@ -345,6 +351,8 @@ class Walker:
     def _should_stop_walking(self, obj, size: int) -> bool:
         if not self._full_walk and self._current_subtree_size + size > WALK_SUBTREE_LIMIT:
             if self._logger is not None:
-                self._logger.warn('Skipping walk through ' + str(type(obj)) + ' with size: ' + str(size))
+                message = f"Skipping walk through {str(type(obj))} with size: {str(size)}\n"\
+                          "Use %enable_full_walk to serialize all variables correctly"
+                warnings.warn(message)
             return True
         return False
