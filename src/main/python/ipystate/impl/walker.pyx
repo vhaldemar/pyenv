@@ -6,12 +6,13 @@ from itertools import islice
 from typing import Tuple, Dict, Iterable, Callable, Set
 
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
+from ipystate.logger import Logger
 
 WALK_SUBTREE_LIMIT = 20000
 
 
 class Walker:
-    def __init__(self, logger=None, dispatch_table=None):
+    def __init__(self, logger: Logger = None, dispatch_table=None):
         self._logger = logger
         self._constant = object()
 

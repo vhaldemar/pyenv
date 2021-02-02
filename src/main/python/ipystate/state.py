@@ -2,12 +2,12 @@ import abc
 import uuid
 
 from typing import Iterable, Set, FrozenSet
-from logging import Logger
 
 from ipystate.change import AtomicChange, PrimitiveAtomicChange, ComponentAtomicChange, RemoveAtomicChange
 from ipystate.serialization import Serializer, PrimitiveDump, ComponentDump
 from ipystate.impl.changedetector import ChangeDetector, ChangeStage, ChangedState
 from ipystate.impl.walker import Walker
+from ipystate.logger import Logger
 
 
 class CellEffects:
@@ -95,10 +95,13 @@ class StateManager(abc.ABC):
 
     def pre_cell(self) -> None:
         self._fill_ns()
+        self._state.pre_cell()
         if not self._in_transaction:
             self._in_transaction = True
             self._state.start_transaction()
-        self._state.pre_cell()
+
+    def post_cell(self) -> None:
+        self._state.post_cell()
 
     @abc.abstractmethod
     def clear_state(self) -> None:
