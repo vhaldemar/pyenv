@@ -9,7 +9,7 @@ from typing import Tuple, Dict, Iterable, Callable, Set
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
 from ipystate.logger import Logger
 
-WALK_SUBTREE_LIMIT = 20000
+WALK_SUBTREE_LIMIT = 1000
 
 
 class Walker:
@@ -109,13 +109,14 @@ class Walker:
         t = type(obj)
         dispatch_f = self.dispatch.get(t)
         # do nothing if saving constant or saving a forbidden obj
-        if dispatch_f == Walker.save_constant or obj in self.forbidden_objects:
+        if dispatch_f is Walker.save_constant or \
+            (obj is type(None)) or (obj is type(NotImplemented)) or (obj is type(...)):
             return None
 
         was_visited = self._was_visited(obj)
         self._visit_object(obj)
 
-        if was_visited or dispatch_f == Walker.ignore_subtree:
+        if was_visited or dispatch_f is Walker.ignore_subtree:
             return None
 
         # visit with dispatch table
