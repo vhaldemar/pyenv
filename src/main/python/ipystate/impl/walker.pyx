@@ -1,5 +1,7 @@
 import copyreg
 import sys
+import warnings
+
 from itertools import groupby
 from itertools import islice
 from typing import Tuple, Dict, Iterable, Callable, Set
@@ -93,26 +95,34 @@ class Walker:
 
     def _save(self, obj: object) -> None:
         if not self._full_walk and self._current_subtree_size > WALK_SUBTREE_LIMIT:
+            if self._logger is not None:
+                message = f"Skipping walk through {str(type(obj))}\n"\
+                          "Walking trough too many objects\n"\
+                          "Use %enable_full_walk to serialize all variables correctly"
+                warnings.warn_explicit(message)
             raise Exception('walk depth limit exceeded')
         self._current_subtree_size += 1
 
         assert self._labels_found is not None
+
+        # check object type
+        t = type(obj)
+        dispatch_f = self.dispatch.get(t)
+        # do nothing if saving constant or saving a forbidden obj
+        if dispatch_f is Walker.save_constant or \
+            (obj is type(None)) or (obj is type(NotImplemented)) or (obj is type(...)):
+            return None
+
         was_visited = self._was_visited(obj)
         self._visit_object(obj)
 
-        if was_visited:
-            return None
-
-        if obj is type(None) or obj is type(NotImplemented) or obj is type(...):
-            self._unvisit_object(obj)
+        if was_visited or dispatch_f is Walker.ignore_subtree:
             return None
 
         # visit with dispatch table
-        t = type(obj)
-        f = self.dispatch.get(t)
-        if f is not None:
+        if dispatch_f is not None:
             # noinspection PyArgumentList
-            result = f(self, obj)  # Call unbound method with explicit self
+            result = dispatch_f(self, obj)  # Call unbound method with explicit self
             if result == self._constant:
                 self._unvisit_object(obj)
             return result
@@ -216,6 +226,8 @@ class Walker:
 
     # Methods below this point are dispatched through the dispatch table
 
+    forbidden_objects = (type(None), type(NotImplemented), type(...))
+
     dispatch = {}
 
     def save_constant(self, _) -> object:
@@ -228,8 +240,9 @@ class Walker:
     dispatch[bool] = save_constant
     dispatch[int] = save_constant
     dispatch[float] = save_constant
-    dispatch[bytes] = ignore_subtree
     dispatch[str] = save_constant
+
+    dispatch[bytes] = ignore_subtree
 
     def _save_tuple(self, obj: Tuple) -> object:
         if not obj:  # tuple is empty
@@ -339,6 +352,8 @@ class Walker:
     def _should_stop_walking(self, obj, size: int) -> bool:
         if not self._full_walk and self._current_subtree_size + size > WALK_SUBTREE_LIMIT:
             if self._logger is not None:
-                self._logger.warn('Skipping walk through ' + str(type(obj)) + ' with size: ' + str(size))
+                message = f"Skipping walk through {str(type(obj))} with size: {str(size)}\n"\
+                          "Use %enable_full_walk to serialize all variables correctly"
+                warnings.warn(message)
             return True
         return False
