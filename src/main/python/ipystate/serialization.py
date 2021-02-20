@@ -54,7 +54,6 @@ class Pickler(CloudPickler):
     def __init__(self, ns, dispatch_table, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._ns = ns
-        self.globals_ref[id(ns)] = ns
         self.dispatch_table = dispatch_table
 
     def persistent_id(self, obj):
