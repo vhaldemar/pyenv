@@ -99,7 +99,7 @@ class Walker:
                 message = f"Skipping walk through {str(type(obj))}\n"\
                           "Walking trough too many objects\n"\
                           "Use %enable_full_walk to serialize all variables correctly"
-                warnings.warn_explicit(message)
+                warnings.warn(message)
             raise Exception('walk depth limit exceeded')
         self._current_subtree_size += 1
 
