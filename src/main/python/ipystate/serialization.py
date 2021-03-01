@@ -4,6 +4,7 @@ from collections import ChainMap
 from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO, Union
 
 from cloudpickle import CloudPickler
+import pickle
 
 from .decl import VarDecl
 
@@ -32,6 +33,7 @@ class ComponentDump(Dump):
     """
     Changed component full dump
     """
+
     def __init__(self, all_vars: Set[VarDecl], serialized_vars: Iterable[Tuple[str, BinaryIO]],
                  non_serialized_vars: Set[str]):
         self._all_vars = set(all_vars)
@@ -46,6 +48,27 @@ class ComponentDump(Dump):
 
     def non_serialized_vars(self) -> Set[str]:
         return set(self._non_serialized_vars)
+
+
+class Pickler(CloudPickler):
+    def __init__(self, ns, dispatch_table, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._ns = ns
+        self.dispatch_table = dispatch_table
+
+    def persistent_id(self, obj):
+        if id(obj) == id(self._ns):
+            return "__ns__"
+
+
+class Unpickler(pickle.Unpickler):
+    def __init__(self, ns, *args, **kwargs):
+        super(Unpickler, self).__init__(*args, **kwargs)
+        self._ns = ns
+
+    def persistent_load(self, pid: Any) -> Any:
+        if "__ns__" == pid:
+            return self._ns
 
 
 # class ComponentStructDump(Dump):
@@ -131,11 +154,6 @@ class Serializer:
         """
         pass
 
-    def new_pickler(self, *args, **kwargs):
-        pickler = CloudPickler(*args, **kwargs)
-        pickler.dispatch_table = self.configurable_dispatch_table
-        return pickler
-
     def _on_var_serialize_error(self, name: str, value: Any, e: Exception):
         pass
 
@@ -175,7 +193,7 @@ class Serializer:
         non_serialized_var_names = set()
 
         cf = ChunkedFile()
-        pickler = self.new_pickler(cf)
+        pickler = Pickler(ns, self.configurable_dispatch_table, cf)
         pickler.memo = TransactionalDict(pickler.memo)
 
         comp_sorted_vars = self._sort_component_vars(component, ns)
