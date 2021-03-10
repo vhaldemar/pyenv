@@ -94,11 +94,11 @@ class StateManager(abc.ABC):
         pass
 
     def pre_cell(self) -> None:
-        self._fill_ns()
-        self._state.pre_cell()
         if not self._in_transaction:
             self._in_transaction = True
             self._state.start_transaction()
+        self._fill_ns()
+        self._state.pre_cell()
 
     def post_cell(self) -> None:
         self._state.post_cell()
