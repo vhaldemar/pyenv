@@ -5,6 +5,7 @@ import warnings
 from itertools import groupby
 from itertools import islice
 from typing import Tuple, Dict, Iterable, Callable, Set
+from types import ModuleType
 
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
 from ipystate.logger import Logger
@@ -241,6 +242,7 @@ class Walker:
     dispatch[int] = save_constant
     dispatch[float] = save_constant
     dispatch[str] = save_constant
+    dispatch[ModuleType] = save_constant
 
     dispatch[bytes] = ignore_subtree
 
