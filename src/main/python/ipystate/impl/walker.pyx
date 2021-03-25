@@ -10,7 +10,7 @@ from types import ModuleType
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
 from ipystate.logger import Logger
 
-WALK_SUBTREE_LIMIT = 1000
+WALK_SUBTREE_LIMIT = 5000
 
 
 class Walker:
