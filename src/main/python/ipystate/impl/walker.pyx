@@ -10,7 +10,7 @@ from types import ModuleType
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
 from ipystate.logger import Logger
 
-WALK_SUBTREE_LIMIT = 5000
+WALK_SUBTREE_LIMIT = 10000
 
 
 class Walker:
@@ -100,7 +100,7 @@ class Walker:
                 message = f"Skipping walk through {str(type(obj))}\n"\
                           "Walking trough too many objects\n"\
                           "Use %enable_full_walk to serialize all variables correctly"
-                warnings.warn(message)
+                self._logger.warn(message)
             raise Exception('walk depth limit exceeded')
         self._current_subtree_size += 1
 
