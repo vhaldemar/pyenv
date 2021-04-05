@@ -1,16 +1,15 @@
 import copyreg
 import sys
-import warnings
-
 from itertools import groupby
 from itertools import islice
-from typing import Tuple, Dict, Iterable, Callable, Set
 from types import ModuleType
+from typing import Tuple, Dict, Iterable, Callable, Set
 
 from ipystate.impl.utils import check_object_importable_by_name, SAVE_GLOBAL, reduce_type
 from ipystate.logger import Logger
 
 WALK_SUBTREE_LIMIT = 10000
+WALK_COLLECTION_LIMIT = 1000
 
 
 class Walker:
@@ -352,10 +351,10 @@ class Walker:
         self._memo[id(obj)] = obj
 
     def _should_stop_walking(self, obj, size: int) -> bool:
-        if not self._full_walk and self._current_subtree_size + size > WALK_SUBTREE_LIMIT:
+        if not self._full_walk and (self._current_subtree_size + size > WALK_SUBTREE_LIMIT or size > WALK_COLLECTION_LIMIT):
             if self._logger is not None:
                 message = f"Skipping walk through {str(type(obj))} with size: {str(size)}\n"\
                           "Use %enable_full_walk to serialize all variables correctly"
-                warnings.warn(message)
+                self._logger.warn(message)
             return True
         return False
