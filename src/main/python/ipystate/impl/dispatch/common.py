@@ -5,16 +5,58 @@ from types import CodeType, FunctionType, ModuleType
 from ipystate.impl.utils import constructor, SAVE_GLOBAL_FUNC_ATTR, SAVE_GLOBAL, is_local_object
 import importlib
 import _thread
+import sys
+
+if sys.version_info[:2] == (3, 7):
+    @constructor
+    def _code_constructor(
+            argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
+            varnames, filename, name, firstlineno, lnotab, freevars, cellvars
+    ):
+        # noinspection PyTypeChecker
+        return CodeType(
+            argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
+            varnames, filename, name, firstlineno, lnotab, freevars, cellvars,
+        )
 
 
-@constructor
-def _code_constructor(
-    argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names, varnames, filename, name,
-    firstlineno, lnotab, freevars, cellvars
-):
-    # noinspection PyTypeChecker
-    return CodeType(argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
-                    varnames, filename, name, firstlineno, lnotab, freevars, cellvars)
+    @constructor
+    def _code_constructor_python_3_8(
+            argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
+            varnames, filename, name, firstlineno, lnotab, freevars, cellvars
+    ):
+        # noinspection PyTypeChecker
+        return CodeType(
+            argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
+            varnames, filename, name, firstlineno, lnotab, freevars, cellvars,
+        )
+
+elif sys.version_info[:2] == (3, 8):
+    @constructor
+    def _code_constructor(
+            argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
+            varnames, filename, name, firstlineno, lnotab, freevars, cellvars
+    ):
+        # noinspection PyTypeChecker
+        return CodeType(
+            argcount, 0, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
+            varnames, filename, name, firstlineno, lnotab, freevars, cellvars,
+        )
+
+
+    @constructor
+    def _code_constructor_python_3_8(
+            argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
+            varnames, filename, name, firstlineno, lnotab, freevars, cellvars
+    ):
+        # noinspection PyTypeChecker
+        return CodeType(
+            argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
+            varnames, filename, name, firstlineno, lnotab, freevars, cellvars,
+        )
+
+else:
+    raise Exception(sys.version)
 
 
 def _function_constructor(code):
@@ -35,13 +77,24 @@ class CommonDispatcher(Dispatcher):
         obj = wkref()
         return CommonDispatcher._create_weakref, (obj,)
 
-    @staticmethod
-    def _reduce_code(code):
-        return _code_constructor, (
-            code.co_argcount, code.co_kwonlyargcount, code.co_nlocals, code.co_stacksize, code.co_flags, code.co_code,
-            code.co_consts, code.co_names, code.co_varnames, code.co_filename, code.co_name, code.co_firstlineno,
-            code.co_lnotab, code.co_freevars, code.co_cellvars
-        )
+    if sys.version_info[:2] == (3, 7):
+        @staticmethod
+        def _reduce_code(code):
+            return _code_constructor, (
+                code.co_argcount, code.co_kwonlyargcount, code.co_nlocals, code.co_stacksize,
+                code.co_flags, code.co_code, code.co_consts, code.co_names, code.co_varnames, code.co_filename,
+                code.co_name, code.co_firstlineno, code.co_lnotab, code.co_freevars, code.co_cellvars,
+            )
+    elif sys.version_info[:2] == (3, 8):
+        @staticmethod
+        def _reduce_code(code):
+            return _code_constructor_python_3_8, (
+                code.co_argcount, code.co_posonlyargcount, code.co_kwonlyargcount, code.co_nlocals, code.co_stacksize,
+                code.co_flags, code.co_code, code.co_consts, code.co_names, code.co_varnames, code.co_filename,
+                code.co_name, code.co_firstlineno, code.co_lnotab, code.co_freevars, code.co_cellvars,
+            )
+    else:
+        raise Exception(sys.version)
 
     @staticmethod
     def _reduce_func(func):
