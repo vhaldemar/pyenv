@@ -10,7 +10,7 @@ from .decl import VarDecl
 
 from .impl.components_fuser import ComponentsFuser
 from .impl.dispatch.common import CommonDispatcher
-from .impl.memo import ChunkedFile, TransactionalDict
+from .impl.memo import ChunkedFile
 
 
 class Dump:
@@ -194,7 +194,7 @@ class Serializer:
 
         cf = ChunkedFile()
         pickler = Pickler(ns, self.configurable_dispatch_table, cf)
-        pickler.memo = TransactionalDict(pickler.memo)
+        committed_memo = pickler.memo.copy()
 
         comp_sorted_vars = self._sort_component_vars(component, ns)
         for var_name in comp_sorted_vars:
@@ -203,11 +203,11 @@ class Serializer:
             # TODO  and report to non serialized
             try:
                 pickler.dump(var_value)
-                pickler.memo.commit()
+                committed_memo = pickler.memo.copy()
                 chunk = cf.current_chunk()
                 serialized_vars.append((var_name, chunk))
             except Exception as e:
-                pickler.memo.rollback()
+                pickler.memo = committed_memo
                 non_serialized_var_names.add(var_name)
                 self._on_var_serialize_error(var_name, var_value, e)
             finally:
