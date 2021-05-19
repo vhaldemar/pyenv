@@ -1,3 +1,5 @@
+import sys
+
 from ipystate.impl.dispatch.dispatcher import Dispatcher
 import tensorflow as tf
 from tensorflow.python.keras.layers import deserialize, serialize
@@ -116,7 +118,13 @@ class TensorflowDispatcher(Dispatcher):
         if int(tf.__version__.split('.')[0]) <= 1:
             pass
         else:
-            from tensorflow.python.ops.variable_scope import _VariableScopeStore
-            dispatch[_VariableScopeStore] = self._reduce_without_args(_VariableScopeStore)
-            from tensorflow.python._tf_stack import StackSummary
-            dispatch[StackSummary] = self._reduce_without_args(StackSummary)
+            try:
+                from tensorflow.python.ops.variable_scope import _VariableScopeStore
+                dispatch[_VariableScopeStore] = self._reduce_without_args(_VariableScopeStore)
+                if tf.__version__ < '2.5':
+                    from tensorflow.python._tf_stack import StackSummary
+                    dispatch[StackSummary] = self._reduce_without_args(StackSummary)
+            except ModuleNotFoundError:
+                print(
+                    "Warning: some TensorFlow objects may not be serialized. Try to use TensorFlow 1.5 or 2.3 for full compatibility.",
+                    file=sys.stderr)
