@@ -16,7 +16,7 @@ setuptools.setup(
         'pybase64>=1.0.0,<=1.0.2',
         'cython==0.29.5',
         'pympler==0.9',
-        'packaging==20.9'
+        'packaging==20.9',
     ],
     tests_require=[
         'numpy',
