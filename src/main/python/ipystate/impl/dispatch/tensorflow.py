@@ -7,6 +7,7 @@ from tensorflow.python.keras.saving import saving_utils
 import os
 import json
 import pybase64
+from packaging import version
 
 
 class TensorflowDispatcher(Dispatcher):
@@ -115,13 +116,13 @@ class TensorflowDispatcher(Dispatcher):
         dispatch[tf.Operation] = self._reduce_tf_op
         dispatch[tf.keras.Model] = self._reduce_tf_model
         dispatch[tf.keras.Sequential] = self._reduce_tf_model
-        if int(tf.__version__.split('.')[0]) <= 1:
+        if version.parse(tf.__version__) < version.parse('2.0.0'):
             pass
         else:
             try:
                 from tensorflow.python.ops.variable_scope import _VariableScopeStore
                 dispatch[_VariableScopeStore] = self._reduce_without_args(_VariableScopeStore)
-                if tf.__version__ < '2.5':
+                if version.parse(tf.__version__) < version.parse('2.5.0'):
                     from tensorflow.python._tf_stack import StackSummary
                     dispatch[StackSummary] = self._reduce_without_args(StackSummary)
             except ModuleNotFoundError:
