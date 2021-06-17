@@ -1,6 +1,5 @@
 import sys
 from abc import abstractmethod
-from collections import ChainMap
 from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO, Union
 
 from cloudpickle import CloudPickler
@@ -113,7 +112,7 @@ class BytesUtil:
 
 class Serializer:
     def __init__(self):
-        self._configurable_dispatch_table = ChainMap({}, CloudPickler.dispatch_table)
+        self._configurable_dispatch_table = CloudPickler.dispatch_table
         self._tmp_path = None
 
     def register_reducers(self):
