@@ -1,6 +1,7 @@
 import sys
 from abc import abstractmethod
 from typing import BinaryIO, Iterable, Dict, Set, Tuple, Any, IO, Union
+import traceback
 
 from cloudpickle import CloudPickler
 import pickle
@@ -117,14 +118,22 @@ class Serializer:
 
     def register_reducers(self):
         dispatchers = [CommonDispatcher()]
-        if self._tmp_path is not None and 'tensorflow' in sys.modules:
-            from .impl.dispatch.tensorflow import TensorflowDispatcher
-            dispatchers.append(TensorflowDispatcher(self._tmp_path))
         if 'pandas' in sys.modules:
             from .impl.dispatch.dataframe import DataframeDispatcher
             dispatchers.append(DataframeDispatcher())
         for d in dispatchers:
             d.register(self._configurable_dispatch_table)
+        if self._tmp_path is not None and 'tensorflow' in sys.modules:
+            try:
+                from .impl.dispatch.tensorflow import TensorflowDispatcher
+                TensorflowDispatcher(self._tmp_path).register(self._configurable_dispatch_table)
+            except Exception:
+                print(
+                    "Warning: some TensorFlow objects may not be serialized."
+                    "Try to use TensorFlow 1.5 or 2.3 for full compatibility.",
+                    file=sys.stderr,
+                )
+                traceback.print_exc()
 
     @property
     def configurable_dispatch_table(self):
