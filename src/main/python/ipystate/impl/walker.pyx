@@ -57,8 +57,7 @@ class Walker:
             try:
                 self._save(env[name])
             except Exception as e:
-                self._error(f"Walker: could not walk through variable {name} of type {type(env[name])}")
-                self._error(f"Error: {str(e)}")
+                self._logger.exception(f"Walker: could not walk through variable {name} of type {type(env[name])}", e)
             finally:
                 label_sets.append(self._labels_found)
 
