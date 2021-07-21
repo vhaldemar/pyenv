@@ -215,6 +215,7 @@ class Serializer:
                 chunk = cf.current_chunk()
                 serialized_vars.append((var_name, chunk))
             except Exception as e:
+                pickler.framer.end_framing()
                 pickler.memo = committed_memo
                 non_serialized_var_names.add(var_name)
                 self._on_var_serialize_error(var_name, var_value, e)
