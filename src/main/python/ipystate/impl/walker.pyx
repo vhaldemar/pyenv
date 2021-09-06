@@ -54,11 +54,13 @@ class Walker:
             self._labels_found = {name}
             self._current_label = name
             self._current_subtree_size = 0
+            self._logger.info(f"Walking through variable {name}")
             try:
                 self._save(env[name])
             except Exception as e:
                 self._logger.exception(f"Walker: could not walk through variable {name} of type {type(env[name])}", e)
             finally:
+                self._logger.info(f"Walked through variable {name}")
                 label_sets.append(self._labels_found)
 
         # keep names that are presented in env

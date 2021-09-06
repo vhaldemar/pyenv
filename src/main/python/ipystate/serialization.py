@@ -11,6 +11,7 @@ from .decl import VarDecl
 from .impl.components_fuser import ComponentsFuser
 from .impl.dispatch.common import CommonDispatcher
 from .impl.memo import ChunkedFile
+from ipystate.logger import Logger
 
 
 class Dump:
@@ -112,9 +113,14 @@ class BytesUtil:
 
 
 class Serializer:
-    def __init__(self):
+    def __init__(self, logger: Logger = None):
         self._configurable_dispatch_table = CloudPickler.dispatch_table
         self._tmp_path = None
+        self._logger = logger
+
+    @property
+    def logger(self):
+        return self._logger
 
     def register_reducers(self):
         dispatchers = [CommonDispatcher()]
@@ -242,7 +248,13 @@ class Serializer:
 
         for component in components:
             if len(component & affected_var_names) > 0:
-                yield self._dump_component(component, ns)
+                if self._logger:
+                    self._logger.info(f'Dumping component {component}')
+                try:
+                    yield self._dump_component(component, ns)
+                finally:
+                    if self._logger:
+                        self._logger.info(f'Dumped component {component}')
 
 
 class Deserializer:
