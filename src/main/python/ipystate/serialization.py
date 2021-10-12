@@ -207,7 +207,7 @@ class Serializer:
         non_serialized_var_names = set()
 
         cf = ChunkedFile()
-        pickler = Pickler(ns, self.configurable_dispatch_table, cf)
+        pickler = Pickler(ns, self.configurable_dispatch_table, cf, protocol=4)
         committed_memo = pickler.memo.copy()
 
         comp_sorted_vars = self._sort_component_vars(component, ns)
