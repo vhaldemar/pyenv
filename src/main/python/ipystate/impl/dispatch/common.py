@@ -1,3 +1,7 @@
+import os.path
+
+import io
+
 from ipystate.impl.dispatch.dispatcher import Dispatcher
 import threading
 import weakref
@@ -117,6 +121,40 @@ class CommonDispatcher(Dispatcher):
     def _reduce_module(module):
         return importlib.import_module, (module.__name__,)
 
+    @staticmethod
+    def _create_file(name, mode, closed, encoding):
+        names = {'<stdin>': sys.__stdin__, '<stdout>': sys.__stdout__,
+                 '<stderr>': sys.__stderr__}
+        if name in list(names.keys()):
+            f = names[name]
+        elif name == '<tmpfile>':
+            f = os.tmpfile()
+        elif name == '<fdopen>':
+            import tempfile
+            f = tempfile.TemporaryFile(mode)
+        else:
+            try:
+                exists = os.path.exists(name)
+            except:
+                exists = False
+            if not exists and "r" in mode:
+                name = "<fdopen>"
+            if name == "<fdopen>":
+                import tempfile
+                f = tempfile.TemporaryFile(mode)
+            else:
+                f = open(name, mode, encoding=encoding)
+        if closed:
+            f.close()
+        return f
+
+    @staticmethod
+    def _reduce_filehandle(file):
+        if "x" in file.mode:
+            raise Exception("Can't serialize file with x mode")
+        return CommonDispatcher._create_file, (
+            file.name, file.mode, file.closed, file.encoding if hasattr(file, 'encoding') else None)
+
     def register(self, dispatch):
         dispatch[CodeType] = self._reduce_code
         dispatch[FunctionType] = self._reduce_func
@@ -127,4 +165,10 @@ class CommonDispatcher(Dispatcher):
         # noinspection PyUnresolvedReferences
         dispatch[_thread._local] = self._reduce_without_args(_thread._local)
         dispatch[threading.Thread] = self._reduce_without_args(threading.Thread)
+        # Files serialization
+        dispatch[io.FileIO] = self._reduce_filehandle
+        dispatch[io.TextIOWrapper] = self._reduce_filehandle
+        dispatch[io.BufferedRandom] = self._reduce_filehandle
+        dispatch[io.BufferedReader] = self._reduce_filehandle
+        dispatch[io.BufferedWriter] = self._reduce_filehandle
         dispatch[weakref.ReferenceType] = self._reduce_weakref
