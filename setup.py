@@ -14,7 +14,7 @@ setuptools.setup(
         'cloudpickle@git+https://github.com/faucct/cloudpickle.git@feature/persistent-function-globals#egg=cloudpickle',
         'pyarrow>=0.17.1,<=5.0.0',
         'pybase64>=1.0.0,<=1.0.2',
-        'cython==0.29.5',
+        'cython==0.29.26',
         'pympler==0.9',
         'packaging==20.9',
     ],
