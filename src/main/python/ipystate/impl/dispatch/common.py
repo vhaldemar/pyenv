@@ -35,7 +35,7 @@ if sys.version_info[:2] == (3, 7):
             varnames, filename, name, firstlineno, lnotab, freevars, cellvars,
         )
 
-elif sys.version_info[:2] == (3, 8):
+else:
     @constructor
     def _code_constructor(
             argcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
@@ -58,9 +58,6 @@ elif sys.version_info[:2] == (3, 8):
             argcount, posonlyargcount, kwonlyargcount, nlocals, stacksize, flags, codestring, constants, names,
             varnames, filename, name, firstlineno, lnotab, freevars, cellvars,
         )
-
-else:
-    raise Exception(sys.version)
 
 
 def _function_constructor(code):
@@ -89,7 +86,7 @@ class CommonDispatcher(Dispatcher):
                 code.co_flags, code.co_code, code.co_consts, code.co_names, code.co_varnames, code.co_filename,
                 code.co_name, code.co_firstlineno, code.co_lnotab, code.co_freevars, code.co_cellvars,
             )
-    elif sys.version_info[:2] == (3, 8):
+    else:
         @staticmethod
         def _reduce_code(code):
             return _code_constructor_python_3_8, (
@@ -97,8 +94,6 @@ class CommonDispatcher(Dispatcher):
                 code.co_flags, code.co_code, code.co_consts, code.co_names, code.co_varnames, code.co_filename,
                 code.co_name, code.co_firstlineno, code.co_lnotab, code.co_freevars, code.co_cellvars,
             )
-    else:
-        raise Exception(sys.version)
 
     @staticmethod
     def _reduce_func(func):
