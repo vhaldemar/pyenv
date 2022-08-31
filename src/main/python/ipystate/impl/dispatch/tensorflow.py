@@ -1,11 +1,10 @@
 from ipystate.impl.dispatch.dispatcher import Dispatcher
 import tensorflow as tf
-from tensorflow.python.keras.layers import deserialize, serialize
-from tensorflow.python.keras.saving import saving_utils
 import os
 import json
 import pybase64
 from packaging import version
+import shutil
 
 
 class TensorflowDispatcher(Dispatcher):
@@ -14,24 +13,41 @@ class TensorflowDispatcher(Dispatcher):
         self._sess_prefix = 'sess'
 
     @staticmethod
-    def _make_model(model, training_config, weights):
-        restored_model = deserialize(model)
-        if training_config is not None:
-            restored_model.compile(
-                **saving_utils.compile_args_from_training_config(
-                    training_config
-                )
-            )
-        restored_model.set_weights(weights)
+    def clear_model_files(model_folder_path, model_zip_path):
+        if os.path.exists(model_zip_path):
+            os.remove(model_zip_path)
+        if os.path.exists(model_folder_path) and os.path.isdir(model_folder_path):
+            shutil.rmtree(model_folder_path)
+
+    def _make_model(self, data):
+        level = tf.get_logger().getEffectiveLevel()
+        tf.get_logger().setLevel('ERROR')
+        model_path = self._tmp_path + '/model'
+        zip_path = model_path + '.zip'
+        try:
+            with open(zip_path, 'wb') as file:
+                file.write(data)
+            shutil.unpack_archive(zip_path, model_path, 'zip')
+            restored_model = tf.keras.models.load_model(model_path)
+        finally:
+            TensorflowDispatcher.clear_model_files(model_path, zip_path)
+            tf.get_logger().setLevel(level)
         return restored_model
 
-    @staticmethod
-    def _reduce_tf_model(model):
-        model_metadata = saving_utils.model_metadata(model)
-        training_config = model_metadata.get("training_config", None)
-        weights = model.get_weights()
-        model = serialize(model)
-        return TensorflowDispatcher._make_model, (model, training_config, weights)
+    def _reduce_tf_model(self, model):
+        level = tf.get_logger().getEffectiveLevel()
+        tf.get_logger().setLevel('ERROR')
+        model_path = self._tmp_path + '/model'
+        zip_path = model_path + '.zip'
+        try:
+            model.save(model_path)
+            shutil.make_archive(model_path, 'zip', model_path)
+            with open(zip_path, 'rb') as file:
+                data = file.read()
+        finally:
+            TensorflowDispatcher.clear_model_files(model_path, zip_path)
+            tf.get_logger().setLevel(level)
+        return self._make_model, (data,)
 
     @staticmethod
     def _get_tensor_by_name(name: str, graph):
@@ -117,6 +133,8 @@ class TensorflowDispatcher(Dispatcher):
         if version.parse('2.0.0') <= version.parse(tf.__version__):
             from tensorflow.python.ops.variable_scope import _VariableScopeStore
             dispatch[_VariableScopeStore] = self._reduce_without_args(_VariableScopeStore)
+            from tensorflow.python.client._pywrap_tf_session import TF_Graph
+            dispatch[TF_Graph] = self._reduce_without_args(TF_Graph)
             if version.parse(tf.__version__) < version.parse('2.5.0'):
                 from tensorflow.python._tf_stack import StackSummary
                 dispatch[StackSummary] = self._reduce_without_args(StackSummary)
