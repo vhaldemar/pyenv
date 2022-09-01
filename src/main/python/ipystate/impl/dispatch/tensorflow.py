@@ -1,5 +1,7 @@
 from ipystate.impl.dispatch.dispatcher import Dispatcher
 import tensorflow as tf
+from tensorflow.python.keras.layers import deserialize, serialize
+from tensorflow.python.keras.saving import saving_utils
 import os
 import json
 import pybase64
@@ -11,6 +13,18 @@ class TensorflowDispatcher(Dispatcher):
     def __init__(self, tmp_path):
         self._tmp_path = tmp_path
         self._sess_prefix = 'sess'
+
+    @staticmethod
+    def _make_model(model, training_config, weights):
+        restored_model = deserialize(model)
+        if training_config is not None:
+            restored_model.compile(
+                **saving_utils.compile_args_from_training_config(
+                    training_config
+                )
+            )
+        restored_model.set_weights(weights)
+        return restored_model
 
     def _clear_model_files(self, model_folder_path, model_zip_path):
         if os.path.exists(model_zip_path):
@@ -32,7 +46,7 @@ class TensorflowDispatcher(Dispatcher):
         else:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = prev_cpp_level
 
-    def _make_model(self, data):
+    def _make_model_new(self, data):
         prev_level, prev_cpp_level = self._disable_tf_logs()
         model_path = self._tmp_path + '/model'
         zip_path = model_path + '.zip'
@@ -58,7 +72,7 @@ class TensorflowDispatcher(Dispatcher):
         finally:
             self._clear_model_files(model_path, zip_path)
             self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
-        return self._make_model, (data,)
+        return self._make_model_new, (data,)
 
     @staticmethod
     def _get_tensor_by_name(name: str, graph):
