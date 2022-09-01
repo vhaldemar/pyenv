@@ -12,16 +12,28 @@ class TensorflowDispatcher(Dispatcher):
         self._tmp_path = tmp_path
         self._sess_prefix = 'sess'
 
-    @staticmethod
-    def clear_model_files(model_folder_path, model_zip_path):
+    def _clear_model_files(self, model_folder_path, model_zip_path):
         if os.path.exists(model_zip_path):
             os.remove(model_zip_path)
         if os.path.exists(model_folder_path) and os.path.isdir(model_folder_path):
             shutil.rmtree(model_folder_path)
 
-    def _make_model(self, data):
-        level = tf.get_logger().getEffectiveLevel()
+    def _disable_tf_logs(self):
+        prev_level = tf.get_logger().getEffectiveLevel()
         tf.get_logger().setLevel('ERROR')
+        prev_cpp_level = os.getenv('TF_CPP_MIN_LOG_LEVEL')
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+        return prev_level, prev_cpp_level
+
+    def _rollback_tf_logger_levels(self, prev_level, prev_cpp_level):
+        tf.get_logger().setLevel(prev_level)
+        if prev_cpp_level is None:
+            del os.environ['TF_CPP_MIN_LOG_LEVEL']
+        else:
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = prev_cpp_level
+
+    def _make_model(self, data):
+        prev_level, prev_cpp_level = self._disable_tf_logs()
         model_path = self._tmp_path + '/model'
         zip_path = model_path + '.zip'
         try:
@@ -30,13 +42,12 @@ class TensorflowDispatcher(Dispatcher):
             shutil.unpack_archive(zip_path, model_path, 'zip')
             restored_model = tf.keras.models.load_model(model_path)
         finally:
-            TensorflowDispatcher.clear_model_files(model_path, zip_path)
-            tf.get_logger().setLevel(level)
+            self._clear_model_files(model_path, zip_path)
+            self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
         return restored_model
 
     def _reduce_tf_model(self, model):
-        level = tf.get_logger().getEffectiveLevel()
-        tf.get_logger().setLevel('ERROR')
+        prev_level, prev_cpp_level = self._disable_tf_logs()
         model_path = self._tmp_path + '/model'
         zip_path = model_path + '.zip'
         try:
@@ -45,8 +56,8 @@ class TensorflowDispatcher(Dispatcher):
             with open(zip_path, 'rb') as file:
                 data = file.read()
         finally:
-            TensorflowDispatcher.clear_model_files(model_path, zip_path)
-            tf.get_logger().setLevel(level)
+            self._clear_model_files(model_path, zip_path)
+            self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
         return self._make_model, (data,)
 
     @staticmethod
