@@ -6,6 +6,7 @@ import os
 import json
 import pybase64
 from packaging import version
+import shutil
 
 
 class TensorflowDispatcher(Dispatcher):
@@ -25,13 +26,54 @@ class TensorflowDispatcher(Dispatcher):
         restored_model.set_weights(weights)
         return restored_model
 
-    @staticmethod
-    def _reduce_tf_model(model):
-        model_metadata = saving_utils.model_metadata(model)
-        training_config = model_metadata.get("training_config", None)
-        weights = model.get_weights()
-        model = serialize(model)
-        return TensorflowDispatcher._make_model, (model, training_config, weights)
+    def _clear_model_files(self, model_folder_path, model_zip_path):
+        if os.path.exists(model_zip_path):
+            os.remove(model_zip_path)
+        if os.path.exists(model_folder_path) and os.path.isdir(model_folder_path):
+            shutil.rmtree(model_folder_path)
+
+    def _disable_tf_logs(self):
+        prev_level = tf.get_logger().getEffectiveLevel()
+        tf.get_logger().setLevel('ERROR')
+        prev_cpp_level = os.getenv('TF_CPP_MIN_LOG_LEVEL')
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+        return prev_level, prev_cpp_level
+
+    def _rollback_tf_logger_levels(self, prev_level, prev_cpp_level):
+        tf.get_logger().setLevel(prev_level)
+        if prev_cpp_level is None:
+            del os.environ['TF_CPP_MIN_LOG_LEVEL']
+        else:
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = prev_cpp_level
+
+    def _make_model_new(self, data):
+        prev_level, prev_cpp_level = self._disable_tf_logs()
+        model_path = os.path.join(self._tmp_path, 'model')
+        zip_path = model_path + '.zip'
+        try:
+            with open(zip_path, 'wb') as file:
+                file.write(data)
+            del data
+            shutil.unpack_archive(zip_path, model_path, 'zip')
+            restored_model = tf.keras.models.load_model(model_path)
+        finally:
+            self._clear_model_files(model_path, zip_path)
+            self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
+        return restored_model
+
+    def _reduce_tf_model(self, model):
+        prev_level, prev_cpp_level = self._disable_tf_logs()
+        model_path = os.path.join(self._tmp_path, 'model')
+        zip_path = model_path + '.zip'
+        try:
+            model.save(model_path)
+            shutil.make_archive(model_path, 'zip', model_path)
+            with open(zip_path, 'rb') as file:
+                data = file.read()
+        finally:
+            self._clear_model_files(model_path, zip_path)
+            self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
+        return self._make_model_new, (data,)
 
     @staticmethod
     def _get_tensor_by_name(name: str, graph):
@@ -117,6 +159,8 @@ class TensorflowDispatcher(Dispatcher):
         if version.parse('2.0.0') <= version.parse(tf.__version__):
             from tensorflow.python.ops.variable_scope import _VariableScopeStore
             dispatch[_VariableScopeStore] = self._reduce_without_args(_VariableScopeStore)
+            from tensorflow.python.client._pywrap_tf_session import TF_Graph
+            dispatch[TF_Graph] = self._reduce_without_args(TF_Graph)
             if version.parse(tf.__version__) < version.parse('2.5.0'):
                 from tensorflow.python._tf_stack import StackSummary
                 dispatch[StackSummary] = self._reduce_without_args(StackSummary)
