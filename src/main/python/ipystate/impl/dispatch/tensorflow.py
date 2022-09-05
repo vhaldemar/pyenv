@@ -48,11 +48,12 @@ class TensorflowDispatcher(Dispatcher):
 
     def _make_model_new(self, data):
         prev_level, prev_cpp_level = self._disable_tf_logs()
-        model_path = self._tmp_path + '/model'
+        model_path = os.path.join(self._tmp_path, 'model')
         zip_path = model_path + '.zip'
         try:
             with open(zip_path, 'wb') as file:
                 file.write(data)
+            del data
             shutil.unpack_archive(zip_path, model_path, 'zip')
             restored_model = tf.keras.models.load_model(model_path)
         finally:
@@ -62,7 +63,7 @@ class TensorflowDispatcher(Dispatcher):
 
     def _reduce_tf_model(self, model):
         prev_level, prev_cpp_level = self._disable_tf_logs()
-        model_path = self._tmp_path + '/model'
+        model_path = os.path.join(self._tmp_path, 'model')
         zip_path = model_path + '.zip'
         try:
             model.save(model_path)
