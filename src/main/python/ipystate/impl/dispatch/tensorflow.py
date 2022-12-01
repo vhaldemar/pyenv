@@ -73,10 +73,13 @@ class TensorflowDispatcher(Dispatcher):
         zip_path = model_path + '.zip'
         try:
             model.save(model_path)
-            shutil.make_archive(model_path, 'zip', model_path)
+            single_file = os.path.isfile(model_path)
+            if single_file:
+                shutil.make_archive(model_path, 'zip', self._tmp_path, model_path)
+            else:
+                shutil.make_archive(model_path, 'zip', model_path)
             with open(zip_path, 'rb') as file:
                 data = file.read()
-            single_file = os.path.isfile(model_path)
         finally:
             self._clear_model_files(model_path, zip_path)
             self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
