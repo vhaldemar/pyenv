@@ -26,11 +26,14 @@ class TensorflowDispatcher(Dispatcher):
         restored_model.set_weights(weights)
         return restored_model
 
-    def _clear_model_files(self, model_folder_path, model_zip_path):
+    def _clear_model_files(self, model_path, model_zip_path):
         if os.path.exists(model_zip_path):
             os.remove(model_zip_path)
-        if os.path.exists(model_folder_path) and os.path.isdir(model_folder_path):
-            shutil.rmtree(model_folder_path)
+        if os.path.exists(model_path):
+            if os.path.isdir(model_path):
+                shutil.rmtree(model_path)
+            else:
+                os.remove(model_path)
 
     def _disable_tf_logs(self):
         prev_level = tf.get_logger().getEffectiveLevel()
@@ -46,7 +49,7 @@ class TensorflowDispatcher(Dispatcher):
         else:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = prev_cpp_level
 
-    def _make_model_new(self, data):
+    def _make_model_new(self, data, single_file=False):
         prev_level, prev_cpp_level = self._disable_tf_logs()
         model_path = os.path.join(self._tmp_path, 'model')
         zip_path = model_path + '.zip'
@@ -54,7 +57,10 @@ class TensorflowDispatcher(Dispatcher):
             with open(zip_path, 'wb') as file:
                 file.write(data)
             del data
-            shutil.unpack_archive(zip_path, model_path, 'zip')
+            if single_file:
+                shutil.unpack_archive(zip_path, self._tmp_path, 'zip')
+            else:
+                shutil.unpack_archive(zip_path, model_path, 'zip')
             restored_model = tf.keras.models.load_model(model_path)
         finally:
             self._clear_model_files(model_path, zip_path)
@@ -70,10 +76,11 @@ class TensorflowDispatcher(Dispatcher):
             shutil.make_archive(model_path, 'zip', model_path)
             with open(zip_path, 'rb') as file:
                 data = file.read()
+            single_file = os.path.isfile(model_path)
         finally:
             self._clear_model_files(model_path, zip_path)
             self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
-        return self._make_model_new, (data,)
+        return self._make_model_new, (data, single_file)
 
     @staticmethod
     def _get_tensor_by_name(name: str, graph):
