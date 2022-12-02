@@ -48,30 +48,33 @@ class TensorflowDispatcher(Dispatcher):
 
     def _make_model_new(self, data):
         prev_level, prev_cpp_level = self._disable_tf_logs()
-        model_path = os.path.join(self._tmp_path, 'model')
-        zip_path = model_path + '.zip'
+        model_folder = os.path.join(self._tmp_path, 'saved_model')
+        model_path = os.path.join(model_folder, 'model')
+        zip_path = model_folder + '.zip'
         try:
             with open(zip_path, 'wb') as file:
                 file.write(data)
             del data
-            shutil.unpack_archive(zip_path, model_path, 'zip')
+            shutil.unpack_archive(zip_path, model_folder, 'zip')
             restored_model = tf.keras.models.load_model(model_path)
         finally:
-            self._clear_model_files(model_path, zip_path)
+            self._clear_model_files(model_folder, zip_path)
             self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
         return restored_model
 
     def _reduce_tf_model(self, model):
         prev_level, prev_cpp_level = self._disable_tf_logs()
-        model_path = os.path.join(self._tmp_path, 'model')
-        zip_path = model_path + '.zip'
+        model_folder = os.path.join(self._tmp_path, 'saved_model')
+        model_path = os.path.join(model_folder, 'model')
+        zip_path = model_folder + '.zip'
         try:
+            os.mkdir(model_folder)
             model.save(model_path)
-            shutil.make_archive(model_path, 'zip', model_path)
+            shutil.make_archive(model_folder, 'zip', model_folder)
             with open(zip_path, 'rb') as file:
                 data = file.read()
         finally:
-            self._clear_model_files(model_path, zip_path)
+            self._clear_model_files(model_folder, zip_path)
             self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
         return self._make_model_new, (data,)
 
