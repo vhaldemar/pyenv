@@ -48,6 +48,21 @@ class TensorflowDispatcher(Dispatcher):
 
     def _make_model_new(self, data):
         prev_level, prev_cpp_level = self._disable_tf_logs()
+        model_path = os.path.join(self._tmp_path, 'model')
+        zip_path = model_path + '.zip'
+        try:
+            with open(zip_path, 'wb') as file:
+                file.write(data)
+            del data
+            shutil.unpack_archive(zip_path, model_path, 'zip')
+            restored_model = tf.keras.models.load_model(model_path)
+        finally:
+            self._clear_model_files(model_path, zip_path)
+            self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
+        return restored_model
+
+    def _load_model(self, data):
+        prev_level, prev_cpp_level = self._disable_tf_logs()
         model_folder = os.path.join(self._tmp_path, 'saved_model')
         model_path = os.path.join(model_folder, 'model')
         zip_path = model_folder + '.zip'
@@ -76,7 +91,7 @@ class TensorflowDispatcher(Dispatcher):
         finally:
             self._clear_model_files(model_folder, zip_path)
             self._rollback_tf_logger_levels(prev_level, prev_cpp_level)
-        return self._make_model_new, (data,)
+        return self._load_model, (data,)
 
     @staticmethod
     def _get_tensor_by_name(name: str, graph):
