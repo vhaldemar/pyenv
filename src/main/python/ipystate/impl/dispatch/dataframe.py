@@ -12,6 +12,7 @@ class _DataFrameParquetAdapter:
 
     PREFIX = 'pq_converted'
     PREFIX_INT = PREFIX + ':' + 'int' + ':'
+    PREFIX_TUPLE = PREFIX + ':' + 'tuple' + ':'
 
     @staticmethod
     def _all_str(cols) -> bool:
@@ -25,14 +26,21 @@ class _DataFrameParquetAdapter:
         return False
 
     @staticmethod
+    def _is_multi_index(cols) -> bool:
+        return all(isinstance(c, str) and c.startswith(_DataFrameParquetAdapter.PREFIX_TUPLE) for c in cols)
+
+    @staticmethod
     def prepare_for_parquet(df: pd.DataFrame) -> pd.DataFrame:
         df1 = df.copy(deep=False)
         if not _DataFrameParquetAdapter._all_str(df1):
             cols = []
             for c in df.columns:
-                typed_name = str(c)
                 if isinstance(c, int):
                     typed_name = _DataFrameParquetAdapter.PREFIX_INT + str(c)
+                elif isinstance(c, tuple):
+                    typed_name = _DataFrameParquetAdapter.PREFIX_TUPLE + repr(c)
+                else:
+                    typed_name = str(c)
                 cols.append(typed_name)
             df1.columns = cols
         return df1
@@ -43,15 +51,21 @@ class _DataFrameParquetAdapter:
         if _DataFrameParquetAdapter._is_pq_converted(df.columns):
             cols = []
             for c in df.columns:
-                if isinstance(c, str) and c.startswith(_DataFrameParquetAdapter.PREFIX_INT):
-                    try:
-                        ci = int(c[len(_DataFrameParquetAdapter.PREFIX_INT):])
-                        cols.append(ci)
-                    except:
-                        cols.append(c)
-                else:
+                try:
+                    if isinstance(c, str) and c.startswith(_DataFrameParquetAdapter.PREFIX_INT):
+                        restored = int(c[len(_DataFrameParquetAdapter.PREFIX_INT):])
+                    elif isinstance(c, str) and c.startswith(_DataFrameParquetAdapter.PREFIX_TUPLE):
+                        restored = eval(c[len(_DataFrameParquetAdapter.PREFIX_TUPLE):])
+                    else:
+                        restored = c
+                    cols.append(restored)
+                except:
                     cols.append(c)
-            df1.columns = cols
+
+            if _DataFrameParquetAdapter._is_multi_index(df.columns):
+                df1.columns = pd.MultiIndex.from_tuples(cols)
+            else:
+                df1.columns = cols
         return df1
 
 
